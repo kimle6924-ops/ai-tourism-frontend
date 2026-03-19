@@ -23,6 +23,23 @@
         color: white;
         line-height: 1.6;
     }
+
+    /* Inputs always use dark text regardless of body color */
+    input,
+    textarea,
+    select {
+        color: #1f2937;
+    }
+
+    /* Override browser autofill blue/grey background & text */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+        -webkit-text-fill-color: #1f2937 !important;
+        -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
 }
 
 @layer components {

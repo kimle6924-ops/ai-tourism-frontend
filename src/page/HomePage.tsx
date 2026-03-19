@@ -1,4 +1,11 @@
-import { Search, Star } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, Star, ChevronRight, LogOut } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '../store';
+import { logout } from '../store/slice/LoginSlice';
+import { fetchProfileThunk, resetProfile } from '../store/slice/ProfileSlice';
+import { clearTokens } from '../utils/headerApi';
 import bannerImg from '../assets/images/banner.jpg';
 import planeImg from '../assets/images/plane.png';
 import chatbotImg from '../assets/images/image_chatbot.png';
@@ -8,6 +15,113 @@ import locationImg from '../assets/images/image_location.png';
 import text1Img from '../assets/images/image_text1.png';
 import text2Img from '../assets/images/image_text2.png';
 import text3Img from '../assets/images/image_text3.png';
+
+// ─────────────────────────────────────────────
+// Profile Dropdown
+// ─────────────────────────────────────────────
+function ProfileDropdown() {
+  const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { profile } = useSelector((s: RootState) => s.profile);
+  // Use Redux login state — reactive, updates immediately after login/logout
+  const loginUser = useSelector((s: RootState) => s.login.user);
+  const isLoggedIn = !!loginUser;
+
+  // Re-fetch profile whenever the logged-in user changes (e.g., after login or account switch)
+  useEffect(() => {
+    if (isLoggedIn) {
+      dispatch(fetchProfileThunk());
+    }
+  }, [isLoggedIn, loginUser?.id, dispatch]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleProfileClick = () => {
+    if (!isLoggedIn) {
+      navigate({ to: '/auth' });
+    } else {
+      setOpen((prev) => !prev);
+    }
+  };
+
+  const handleLogout = () => {
+    clearTokens();
+    dispatch(logout());
+    dispatch(resetProfile()); // clear stale profile immediately
+    setOpen(false);
+    navigate({ to: '/' });
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={handleProfileClick}
+        className="flex h-12 w-12 items-center justify-center rounded-full overflow-hidden border-2 border-white/50 shadow-lg transition-all hover:scale-105 active:scale-95"
+      >
+        <img src={profileImg} alt="User profile" className="h-full w-full object-cover" />
+      </button>
+
+      {open && isLoggedIn && profile && (
+        <div className="absolute right-0 top-14 z-50 w-80 overflow-hidden rounded-2xl bg-white shadow-2xl border border-blue-100 animate-fade-in">
+          {/* Profile header */}
+          <div className="flex items-center gap-4 border border-dashed border-blue-300 m-3 rounded-xl p-4">
+            <div className="h-16 w-16 rounded-full overflow-hidden bg-purple-100 flex-shrink-0">
+              {profile.avatarUrl ? (
+                <img src={profile.avatarUrl} alt={profile.fullName} className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-2xl font-bold text-purple-600">
+                  {profile.fullName.charAt(0)}
+                </div>
+              )}
+            </div>
+            <h3 className="text-2xl font-bold text-[#00008A]">{profile.fullName}</h3>
+          </div>
+
+          {/* Info rows */}
+          <div className="px-4 pb-2">
+            <p className="mb-3 text-sm font-bold text-[#00008A]">Thông tin cá nhân:</p>
+            {[
+              { label: 'Tên tài khoản', value: profile.fullName },
+              { label: 'Email', value: profile.email },
+              { label: 'Số điện thoại', value: profile.phone || '—' },
+            ].map(({ label, value }) => (
+              <button
+                key={label}
+                className="flex w-full items-center justify-between border-b border-gray-100 py-3 text-sm text-gray-700 hover:bg-gray-50 px-1 rounded transition"
+              >
+                <span className="text-gray-600">{label}</span>
+                <span className="flex items-center gap-1 font-medium text-gray-800 max-w-[160px] truncate">
+                  {value}
+                  <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Logout button */}
+          <div className="p-4">
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00008A] py-3 font-bold text-white transition hover:bg-[#0000aa] active:scale-95"
+            >
+              <LogOut size={16} />
+              Đăng xuất
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const DestinationCard = ({ imageUrl }: { imageUrl: string }) => (
     <div className="relative h-72 w-full overflow-hidden rounded-2xl shadow-lg md:h-80 group">
@@ -26,6 +140,7 @@ const DestinationCard = ({ imageUrl }: { imageUrl: string }) => (
         </div>
     </div>
 );
+
 
 const mockImages = [
     'https://images.unsplash.com/photo-1541432901042-2b8bd6f8892d?q=80&w=400',
@@ -62,9 +177,7 @@ export function HomePage() {
                         </div>
                         {/* User Icon */}
                         <div className="flex flex-1 justify-end">
-                            <button className="flex h-12 w-12 items-center justify-center rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95">
-                                <img src={profileImg} alt="User profile" className="h-full w-full object-cover" />
-                            </button>
+                            <ProfileDropdown />
                         </div>
                     </header>
 
