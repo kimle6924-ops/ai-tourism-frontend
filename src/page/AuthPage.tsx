@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { loginThunk } from '../store/slice/LoginSlice';
 import { registerThunk } from '../store/slice/RegisterSlice';
+import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
 import bannerImg from '../assets/images/banner.jpg';
 
 // ─────────────────────────────────────────────
@@ -18,26 +19,20 @@ interface RegisterData {
     phone: string;
 }
 
-const HOBBY_CATEGORIES = [
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '🌿 Thiên nhiên' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '🏙️ Thành phố' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '🍜 Ẩm thực' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '🏯 Văn hoá - Lịch sử' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '🎉 Lễ hội - sự kiện' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '😌 Chill – thư giãn' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '😄 Vui vẻ – năng động' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '😲 Sôi động – náo nhiệt' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '😉 Phiêu lưu – khám phá' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '🧗 Trekking / khám phá' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '🏕️ Du lịch sinh thái' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '📸 Check-in sống ảo' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '🎮 Giải trí / vui chơi' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '💰 Giá rẻ – tiết kiệm' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '💎 Cao cấp – sang chảnh' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '👨‍👩‍👧 Gia đình' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '❤️ Cặp đôi' },
-    { id: '34686b5e-6d51-4173-9f3e-31f91fb469fa', label: '👯 Nhóm bạn' },
-];
+// Emoji map for category types displayed in interests
+const TYPE_EMOJI: Record<string, string> = {
+    theme: '🗺️',
+    style: '✨',
+    activity: '🏃',
+    budget: '💰',
+    companion: '👥',
+    tourism: '🌏',
+    food: '🍜',
+    accommodation: '🏨',
+    entertainment: '🎉',
+    shopping: '🛍️',
+    event: '🎊',
+};
 
 // ─────────────────────────────────────────────
 // Login Form
@@ -120,7 +115,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 }
 
 // ─────────────────────────────────────────────
-// Register Form — chỉ thu thập dữ liệu, CHƯA gọi API
+// Register Form — thu thập dữ liệu, chưa gọi API
 // ─────────────────────────────────────────────
 function RegisterForm({
     onSwitch,
@@ -143,7 +138,6 @@ function RegisterForm({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Không gọi API ở đây, chỉ chuyển sang bước chọn sở thích
         onSuccess(form);
     };
 
@@ -226,32 +220,44 @@ function RegisterForm({
 }
 
 // ─────────────────────────────────────────────
-// Interests — gọi API register rồi tự đăng nhập
+// Interests — fetch categories từ API, gọi register rồi tự đăng nhập
 // ─────────────────────────────────────────────
 function InterestsStep({ registerData }: { registerData: RegisterData }) {
     const navigate = useNavigate();
     const dispatch = useDispatch<AppDispatch>();
+
     const { loading: regLoading, error: regError } = useSelector((s: RootState) => s.register);
     const { loading: loginLoading } = useSelector((s: RootState) => s.login);
-    const [selected, setSelected] = useState<Set<number>>(new Set());
+    const { items: categories, loading: catLoading, error: catError } = useSelector(
+        (s: RootState) => s.category,
+    );
+
+    const [selected, setSelected] = useState<Set<string>>(new Set());
     const loading = regLoading || loginLoading;
 
-    const toggle = (i: number) => {
+    // Fetch categories on mount
+    useEffect(() => {
+        dispatch(fetchCategoriesThunk());
+    }, [dispatch]);
+
+    const toggle = (id: string) => {
         setSelected((prev) => {
             const next = new Set(prev);
-            if (next.has(i)) next.delete(i);
-            else next.add(i);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
             return next;
         });
     };
 
     const handleConfirm = async () => {
-        // 1. Gọi API đăng ký
+        const categoryIds = selected.size > 0 ? Array.from(selected) : [];
+
+        // 1. Gọi API đăng ký với các category đã chọn
         const regResult = await dispatch(
             registerThunk({
                 ...registerData,
                 role: 2,
-                categoryIds: ['34686b5e-6d51-4173-9f3e-31f91fb469fa'],
+                categoryIds,
             }),
         );
         if (!registerThunk.fulfilled.match(regResult)) return;
@@ -267,27 +273,47 @@ function InterestsStep({ registerData }: { registerData: RegisterData }) {
 
     return (
         <div className="w-full max-w-2xl rounded-2xl bg-white/90 backdrop-blur-md px-8 py-10 shadow-2xl">
-            <div className="mb-8 flex flex-wrap justify-center gap-3">
-                {HOBBY_CATEGORIES.map((cat, i) => (
-                    <button
-                        key={i}
-                        type="button"
-                        onClick={() => toggle(i)}
-                        className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105 ${selected.has(i)
-                            ? 'border-[#00008A] bg-[#00008A] text-white shadow-md'
-                            : 'border-gray-300 bg-white text-gray-700 hover:border-[#00008A] hover:text-[#00008A]'
+            <h2 className="mb-2 text-center font-bold text-[#00008A] text-2xl">Bạn thích gì?</h2>
+            <p className="mb-6 text-center text-sm text-gray-500">
+                Chọn những sở thích phù hợp với bạn để chúng tôi gợi ý tốt hơn
+            </p>
+
+            {catLoading && (
+                <div className="mb-6 flex justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#00008A] border-t-transparent" />
+                </div>
+            )}
+
+            {catError && (
+                <p className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-center text-sm text-red-500">
+                    {catError}
+                </p>
+            )}
+
+            {!catLoading && categories.length > 0 && (
+                <div className="mb-8 flex flex-wrap justify-center gap-3">
+                    {categories.map((cat) => (
+                        <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => toggle(cat.id)}
+                            className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105 ${
+                                selected.has(cat.id)
+                                    ? 'border-[#00008A] bg-[#00008A] text-white shadow-md'
+                                    : 'border-gray-300 bg-white text-gray-700 hover:border-[#00008A] hover:text-[#00008A]'
                             }`}
-                    >
-                        {cat.label}
-                    </button>
-                ))}
-            </div>
+                        >
+                            {TYPE_EMOJI[cat.type] ?? '📌'} {cat.name}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {regError && (
                 <p className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-center text-sm text-red-500">{regError}</p>
             )}
 
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-3">
                 <button
                     onClick={handleConfirm}
                     disabled={loading}
@@ -295,6 +321,9 @@ function InterestsStep({ registerData }: { registerData: RegisterData }) {
                 >
                     {loading ? 'Đang xử lý...' : '👀 Khám phá ngay 👀'}
                 </button>
+                {selected.size === 0 && !catLoading && (
+                    <p className="text-xs text-gray-400">Bạn có thể bỏ qua bước này nếu chưa muốn chọn</p>
+                )}
             </div>
         </div>
     );
