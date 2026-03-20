@@ -4,6 +4,7 @@ import registerReducer from './slice/RegisterSlice';
 import profileReducer from './slice/ProfileSlice';
 import categoryReducer from './slice/CategorySlice';
 import chatbotReducer from './slice/ChatbotGeminiSlice';
+import preferencesReducer from './slice/PreferencesSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     profile: profileReducer,
     category: categoryReducer,
     chatbot: chatbotReducer,
+    preferences: preferencesReducer,
   },
 });
 
