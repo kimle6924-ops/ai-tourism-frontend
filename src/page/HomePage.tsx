@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Star, LogOut, X, Send, Pencil, Check } from 'lucide-react';
+import { Search, LogOut, X, Send, Pencil, Check, Star } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
@@ -9,6 +9,8 @@ import { fetchPreferencesThunk, updatePreferencesThunk } from '../store/slice/Pr
 import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
 import { clearTokens } from '../utils/headerApi';
 import { addUserMessage, askChatbotThunk } from '../store/slice/ChatbotGeminiSlice';
+import { fetchPlacesPage1Thunk, fetchPlacesPage2Thunk } from '../store/slice/PlacesSlice';
+import type { Place } from '../services/PlacesServices';
 import bannerImg from '../assets/images/banner.jpg';
 import planeImg from '../assets/images/plane.png';
 import chatbotImg from '../assets/images/image_chatbot.png';
@@ -478,36 +480,67 @@ function ChatbotWidget() {
 // ─────────────────────────────────────────────
 // Destination Card
 // ─────────────────────────────────────────────
-const DestinationCard = ({ imageUrl }: { imageUrl: string }) => (
-  <div className="relative h-72 w-full overflow-hidden rounded-2xl shadow-lg md:h-80 group">
-    <img src={imageUrl} alt="Destination" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
-    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
-    <div className="absolute bottom-0 left-0 p-4">
-      <h3 className="text-xl font-bold text-white drop-shadow-lg">Bản cát cát</h3>
-      <p className="mt-1 text-[11px] leading-snug text-gray-200 pr-2">
-        Bản làng du lịch nổi tiếng gần Sa Pa, thu hút du khách bởi cảnh đẹp núi rừng và văn hóa người H'Mông.
-      </p>
-      <div className="mt-2 flex gap-1">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Star key={i} size={14} fill="#FFD700" className="text-[#FFD700]" />
-        ))}
+const PLACE_FALLBACK_IMAGES = [
+  'https://images.unsplash.com/photo-1541432901042-2b8bd6f8892d?q=80&w=400',
+  'https://images.unsplash.com/photo-1603566234586-22a3d0628e35?q=80&w=400',
+  'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=400',
+  'https://images.unsplash.com/photo-1504280741564-f20387431e67?q=80&w=400',
+  'https://images.unsplash.com/photo-1470115636492-6d2b56f9146d?q=80&w=400',
+  'https://images.unsplash.com/photo-1508672019048-805c876b67e2?q=80&w=400',
+  'https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?q=80&w=400',
+  'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=400',
+];
+
+const DestinationCard = ({ place, index }: { place: Place; index: number }) => {
+  const imgUrl = PLACE_FALLBACK_IMAGES[index % PLACE_FALLBACK_IMAGES.length];
+  return (
+    <div className="relative h-72 w-full overflow-hidden rounded-2xl shadow-lg md:h-80 group cursor-pointer">
+      <img src={imgUrl} alt={place.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 p-4 w-full">
+        <h3 className="text-base font-bold text-white drop-shadow-lg line-clamp-1">{place.name}</h3>
+        {/* Star rating */}
+        <div className="mt-1 flex items-center gap-1">
+          {[1, 2, 3, 4, 5].map(star => (
+            <Star
+              key={star}
+              size={12}
+              fill={star <= Math.round(place.averageRating) ? '#FFD700' : 'transparent'}
+              className={star <= Math.round(place.averageRating) ? 'text-[#FFD700]' : 'text-white/40'}
+            />
+          ))}
+          {place.averageRating > 0 && (
+            <span className="ml-1 text-[10px] text-yellow-300 font-semibold">{place.averageRating.toFixed(1)}</span>
+          )}
+        </div>
+        <p className="mt-1 text-[11px] leading-snug text-gray-200 pr-2 line-clamp-2">{place.description}</p>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {place.tags.slice(0, 3).map(tag => (
+            <span key={tag} className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
+              #{tag}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
+  );
+};
+
+const SkeletonCard = () => (
+  <div className="h-72 w-full overflow-hidden rounded-2xl bg-gray-200 md:h-80 animate-pulse">
+    <div className="h-full w-full bg-gradient-to-br from-gray-200 to-gray-300" />
   </div>
 );
 
-const mockImages = [
-  'https://images.unsplash.com/photo-1541432901042-2b8bd6f8892d?q=80&w=400',
-  'https://images.unsplash.com/photo-1603566234586-22a3d0628e35?q=80&w=400',
-  'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=400',
-  'https://images.unsplash.com/photo-1504280741564-f20387431e67?q=80&w=400',
-  'https://images.unsplash.com/photo-1541432901042-2b8bd6f8892d?q=80&w=400',
-  'https://images.unsplash.com/photo-1603566234586-22a3d0628e35?q=80&w=400',
-  'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=400',
-  'https://images.unsplash.com/photo-1504280741564-f20387431e67?q=80&w=400',
-];
-
 export function HomePage() {
+  const dispatch = useDispatch<AppDispatch>();
+  const { page1, page2, loading1, loading2 } = useSelector((s: RootState) => s.places);
+
+  useEffect(() => {
+    dispatch(fetchPlacesPage1Thunk());
+    dispatch(fetchPlacesPage2Thunk());
+  }, [dispatch]);
+
   return (
     <div className="w-full bg-white font-['Inter']">
       {/* Hero Section */}
@@ -569,7 +602,7 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Nào mình cùng vi vu */}
+      {/* Nào mình cùng vi vu — Page 1 */}
       <section className="mx-auto mt-16 max-w-6xl px-4 py-8">
         <div className="mb-12 flex items-center justify-center gap-4">
           <img src={text2Img} alt="Nào mình cùng vi vu" className="h-16 object-contain drop-shadow-md" />
@@ -578,9 +611,10 @@ export function HomePage() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-          {mockImages.map((img, i) => (
-            <DestinationCard key={i} imageUrl={img} />
-          ))}
+          {loading1
+            ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+            : page1.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
+          }
         </div>
       </section>
 
@@ -603,15 +637,16 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Bạn thích trải nghiệm */}
+      {/* Bạn thích trải nghiệm — Page 2 */}
       <section className="mx-auto mt-8 max-w-6xl px-4 py-16">
         <div className="mb-12 flex justify-center">
           <img src={text3Img} alt="Bạn thích trải nghiệm" className="h-16 object-contain drop-shadow-md" />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-          {mockImages.map((img, i) => (
-            <DestinationCard key={i} imageUrl={img} />
-          ))}
+          {loading2
+            ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+            : page2.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
+          }
         </div>
       </section>
 
