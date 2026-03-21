@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import ProfileService from '../../services/ProfileService';
 import type { UserProfile, UpdateProfileRequest } from '../../services/ProfileService';
+import { saveUser } from '../../utils/headerApi';
 
 // ─────────────────────────────────────────────
 // State
@@ -79,6 +80,7 @@ const profileSlice = createSlice({
       .addCase(fetchProfileThunk.fulfilled, (state, action) => {
         state.loading = false;
         state.profile = action.payload;
+        saveUser(action.payload);
       })
       .addCase(fetchProfileThunk.rejected, (state, action) => {
         state.loading = false;
@@ -94,6 +96,7 @@ const profileSlice = createSlice({
       .addCase(updateProfileThunk.fulfilled, (state, action) => {
         state.updating = false;
         state.profile = action.payload; // sync updated data back to store
+        saveUser(action.payload);
       })
       .addCase(updateProfileThunk.rejected, (state, action) => {
         state.updating = false;

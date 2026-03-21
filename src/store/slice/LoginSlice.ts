@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import LoginService, { type LoginRequest, type LoginResponseData } from '../../services/LoginService';
-import { saveTokens } from '../../utils/headerApi';
+import { saveTokens, getTokens, saveUser, getUser } from '../../utils/headerApi';
 
 // ─────────────────────────────────────────────
 // State
@@ -13,8 +13,8 @@ interface LoginState {
 }
 
 const initialState: LoginState = {
-    user: null,
-    accessToken: null,
+    user: getUser(),
+    accessToken: getTokens()?.accessToken ?? null,
     loading: false,
     error: null,
 };
@@ -70,6 +70,7 @@ const loginSlice = createSlice({
                     refreshToken: action.payload.refreshToken,
                     expiresAt: action.payload.expiresAt,
                 });
+                saveUser(action.payload.user);
             })
             .addCase(loginThunk.rejected, (state, action) => {
                 state.loading = false;

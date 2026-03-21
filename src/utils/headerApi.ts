@@ -31,10 +31,30 @@ export const getTokens = (): AuthTokens | null => {
 
 export const clearTokens = () => {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 };
 
 export const getAccessToken = (): string | null => getTokens()?.accessToken ?? null;
 export const getRefreshToken = (): string | null => getTokens()?.refreshToken ?? null;
+
+// ─────────────────────────────────────────────
+// User helpers (localStorage)
+// ─────────────────────────────────────────────
+const USER_KEY = 'auth_user';
+
+export const saveUser = (user: any) => {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+};
+
+export const getUser = (): any | null => {
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
 
 // ─────────────────────────────────────────────
 // Axios instance
