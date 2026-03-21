@@ -40,12 +40,11 @@ export const searchDiscoveryThunk = createAsyncThunk<
             Search: search,
             PageNumber: page,
             PageSize: 12,
+            SortBy: 'rating',
         };
 
         if (rating !== null && rating > 0) {
-            params.averageRating = rating;
-        } else {
-            params.SortBy = 'rating';
+            params.AverageRating = rating;
         }
 
         if (type === 'places') {

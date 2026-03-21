@@ -4,7 +4,7 @@ import type { Place } from './PlacesServices';
 export interface DiscoveryParams {
     Search?: string;
     SortBy?: string;
-    averageRating?: number;
+    AverageRating?: number;
     PageNumber?: number;
     PageSize?: number;
 }
@@ -28,13 +28,13 @@ export interface DiscoveryListResponse {
 
 const DiscoveryService = {
     getPlaces: async (params: DiscoveryParams): Promise<DiscoveryListResponse> => {
-        const res = await axiosInstance.get<DiscoveryListResponse>('/api/discovery/places', {
+        const res = await axiosInstance.get<DiscoveryListResponse>('/api/discovery/search/places', {
             params,
         });
         return res.data;
     },
     getEvents: async (params: DiscoveryParams): Promise<DiscoveryListResponse> => {
-        const res = await axiosInstance.get<DiscoveryListResponse>('/api/discovery/events', {
+        const res = await axiosInstance.get<DiscoveryListResponse>('/api/discovery/search/events', {
             params,
         });
         return res.data;
