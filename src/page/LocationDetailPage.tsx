@@ -10,6 +10,7 @@ import { ProfileDropdown, DestinationCard, SkeletonCard } from './HomePage';
 import bannerImg from '../assets/images/banner.jpg';
 import logoImg from '../assets/images/image_logo_vivu.png';
 import { fetchPlacesPage1Thunk } from '../store/slice/PlacesSlice';
+import { ChatbotWidget } from '../components/ChatbotWidget';
 
 export function LocationDetailPage({ type, id, resourceType }: { type: 'places' | 'events', id: string, resourceType: number }) {
     const dispatch = useDispatch<AppDispatch>();
@@ -272,6 +273,8 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
 
             {/* Footer */}
             <footer className="mt-8 h-20 w-full bg-[#00008A] flex-shrink-0"></footer>
+            
+            <ChatbotWidget />
         </div>
     );
 }

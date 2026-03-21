@@ -10,6 +10,7 @@ import discoveryReducer from './slice/DiscoverySlice';
 import locationDetailReducer from './slice/LocationDetaiSlice';
 import reviewReducer from './slice/ReviewSlice';
 import locationUserReducer from './slice/LocationUserSlice';
+import locationRecommendReducer from './slice/LocationRecommendSlice';
 
 export const store = configureStore({
   reducer: {
@@ -24,6 +25,7 @@ export const store = configureStore({
     locationDetail: locationDetailReducer,
     reviews: reviewReducer,
     locationUser: locationUserReducer,
+    locationRecommend: locationRecommendReducer,
   },
 });
 
