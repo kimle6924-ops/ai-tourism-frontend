@@ -10,12 +10,14 @@ export interface ChatMessage {
 }
 
 interface ChatbotState {
+    conversationId: string | null;
     messages: ChatMessage[];
     loading: boolean;
     error: string | null;
 }
 
 const initialState: ChatbotState = {
+    conversationId: null,
     messages: [
         {
             role: 'bot',
@@ -27,15 +29,31 @@ const initialState: ChatbotState = {
 };
 
 // ─────────────────────────────────────────────
-// Thunk
+// Thunks
 // ─────────────────────────────────────────────
+
+// Creates a conversation if none exists, then sends the message.
 export const askChatbotThunk = createAsyncThunk(
     'chatbot/ask',
-    async (question: string, { rejectWithValue }) => {
+    async (content: string, { getState, rejectWithValue, dispatch }) => {
+        const state = getState() as any;
+        let convId = state.chatbot.conversationId;
+
         try {
-            const res = await ChatbotGeminiService.ask({ question });
-            if (!res.success) return rejectWithValue(res.error ?? 'Chatbot không phản hồi');
-            return res.data.answer;
+            // 1. Create conversation if not exists
+            if (!convId) {
+                const createRes = await ChatbotGeminiService.createConversation();
+                if (!createRes.success) return rejectWithValue(createRes.error ?? 'Không thể tạo cuộc trò chuyện mới');
+                convId = createRes.data.id;
+                // Dispatch action to save the new conversation ID
+                dispatch(setConversationId(convId));
+            }
+
+            // 2. Send message
+            const sendRes = await ChatbotGeminiService.sendMessage(convId as string, { content });
+            if (!sendRes.success) return rejectWithValue(sendRes.error ?? 'Chatbot không phản hồi');
+            
+            return sendRes.data.content;
         } catch (err: unknown) {
             const message =
                 (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
@@ -52,10 +70,14 @@ const chatbotSlice = createSlice({
     name: 'chatbot',
     initialState,
     reducers: {
+        setConversationId(state, action: PayloadAction<string>) {
+            state.conversationId = action.payload;
+        },
         addUserMessage(state, action: PayloadAction<string>) {
             state.messages.push({ role: 'user', text: action.payload });
         },
         clearChatbot(state) {
+            state.conversationId = null;
             state.messages = initialState.messages;
             state.error = null;
         },
@@ -81,5 +103,5 @@ const chatbotSlice = createSlice({
     },
 });
 
-export const { addUserMessage, clearChatbot } = chatbotSlice.actions;
+export const { addUserMessage, clearChatbot, setConversationId } = chatbotSlice.actions;
 export default chatbotSlice.reducer;
