@@ -6,9 +6,12 @@ export interface ReviewItem {
     resourceId: string;
     userId: string;
     userFullName?: string;
+    userAvatarUrl?: string;
     rating: number;
     comment: string;
+    status: number;
     createdAt: string;
+    updatedAt: string;
 }
 
 export interface ReviewListResponse {

@@ -12,6 +12,8 @@ import { addUserMessage, askChatbotThunk } from '../store/slice/ChatbotGeminiSli
 import { fetchPlacesPage1Thunk, fetchPlacesPage2Thunk } from '../store/slice/PlacesSlice';
 import { searchDiscoveryThunk, setDiscoveryType, setDiscoveryQuery, setDiscoveryRating } from '../store/slice/DiscoverySlice';
 import type { Place } from '../services/PlacesServices';
+import Swal from 'sweetalert2';
+import { updateLocationThunk } from '../store/slice/LocationUserSlice';
 import bannerImg from '../assets/images/banner.jpg';
 import planeImg from '../assets/images/plane.png';
 import chatbotImg from '../assets/images/image_chatbot.png';
@@ -215,6 +217,7 @@ export function ProfileDropdown() {
     clearTokens();
     dispatch(logout());
     dispatch(resetProfile());
+    sessionStorage.removeItem('hasAskedLocationSession');
     setOpen(false);
     navigate({ to: '/' });
   };
@@ -543,6 +546,9 @@ export function HomePage() {
   const dispatch = useDispatch<AppDispatch>();
   const { page1, page2, loading1, loading2 } = useSelector((s: RootState) => s.places);
   const { items: discoveryItems, loading: discoveryLoading, isSearched, type: discoveryType, currentRating, currentQuery, currentPage, totalPages } = useSelector((s: RootState) => s.discovery);
+  
+  const { profile } = useSelector((s: RootState) => s.profile);
+  const loginUser = useSelector((s: RootState) => s.login.user);
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -550,6 +556,66 @@ export function HomePage() {
     dispatch(fetchPlacesPage1Thunk());
     dispatch(fetchPlacesPage2Thunk());
   }, [dispatch]);
+
+  // Handle location prompt
+  useEffect(() => {
+    if (loginUser && profile) {
+      const hasAskedLocation = sessionStorage.getItem('hasAskedLocationSession');
+      if (!hasAskedLocation) {
+        sessionStorage.setItem('hasAskedLocationSession', 'true');
+        
+        // Kiểm tra quyền vị trí trước
+        if (navigator.permissions && navigator.permissions.query) {
+          navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
+            if (permissionStatus.state === 'denied') {
+              // Quyền đã bị từ chối trước đó, không làm phiền người dùng nữa
+              return;
+            }
+            
+            // Hỏi để cập nhật lại vị trí hiện tại
+            Swal.fire({
+              title: 'Cập nhật vị trí?',
+              text: 'Vivu muốn lấy vị trí hiện tại của bạn để đề xuất các địa điểm du lịch phù hợp nhất!',
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonColor: '#00008A',
+              cancelButtonColor: '#d33',
+              confirmButtonText: 'Đồng ý',
+              cancelButtonText: 'Lúc khác'
+            }).then((result) => {
+              if (result.isConfirmed) {
+                Swal.fire({
+                  title: 'Đang lấy vị trí mới...',
+                  allowOutsideClick: false,
+                  didOpen: () => {
+                    Swal.showLoading();
+                  }
+                });
+                navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    dispatch(updateLocationThunk({ latitude: lat, longitude: lng }))
+                      .unwrap()
+                      .then(() => {
+                         Swal.fire('Thành công', 'Đã cập nhật vị trí mới nhất của bạn.', 'success');
+                         dispatch(fetchProfileThunk());
+                      })
+                      .catch((err) => {
+                         Swal.fire('Lỗi', typeof err === 'string' ? err : 'Không thể cập nhật vị trí', 'error');
+                      });
+                  },
+                  (error) => {
+                    Swal.fire('Không thể lấy vị trí', error.message, 'error');
+                  }
+                );
+              }
+            });
+          });
+        }
+      }
+    }
+  }, [profile, loginUser, dispatch]);
 
   const scrollToResults = () => {
     setTimeout(() => {

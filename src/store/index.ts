@@ -9,6 +9,7 @@ import placesReducer from './slice/PlacesSlice';
 import discoveryReducer from './slice/DiscoverySlice';
 import locationDetailReducer from './slice/LocationDetaiSlice';
 import reviewReducer from './slice/ReviewSlice';
+import locationUserReducer from './slice/LocationUserSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     discovery: discoveryReducer,
     locationDetail: locationDetailReducer,
     reviews: reviewReducer,
+    locationUser: locationUserReducer,
   },
 });
 

@@ -213,9 +213,15 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                                 {reviews.map((rev: any) => (
                                     <div key={rev.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                                         <div className="flex items-center gap-3 mb-3">
-                                            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#E0FAFA] to-blue-200 flex items-center justify-center text-[#00008A] font-bold shadow-inner">
-                                                <User size={20} />
-                                            </div>
+                                            {rev.userAvatarUrl ? (
+                                                <div className="w-11 h-11 rounded-full overflow-hidden shadow-inner flex-shrink-0">
+                                                    <img src={rev.userAvatarUrl} alt={rev.userFullName || 'User'} className="w-full h-full object-cover" />
+                                                </div>
+                                            ) : (
+                                                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#E0FAFA] to-blue-200 flex items-center justify-center text-[#00008A] font-bold shadow-inner flex-shrink-0">
+                                                    <User size={20} />
+                                                </div>
+                                            )}
                                             <div>
                                                 <p className="font-extrabold text-sm text-[#00008A]">{rev.userFullName || 'Người dùng Ẩn danh'}</p>
                                                 <div className="flex items-center gap-1 mt-0.5">
