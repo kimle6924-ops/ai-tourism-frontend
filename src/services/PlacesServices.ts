@@ -3,9 +3,27 @@ import axiosInstance from '../utils/headerApi';
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
+export interface PlaceImage {
+    id: string;
+    resourceType: number;
+    resourceId: string;
+    url: string;
+    secureUrl: string;
+    publicId: string;
+    format: string;
+    mimeType: string;
+    bytes: number;
+    width: number;
+    height: number;
+    isPrimary: boolean;
+    sortOrder: number;
+    uploadedBy: string;
+    createdAt: string;
+}
+
 export interface Place {
     id: string;
-    name: string;
+    title: string;
     description: string;
     address: string;
     administrativeUnitId: string;
@@ -15,6 +33,8 @@ export interface Place {
     tags: string[];
     moderationStatus: number;
     averageRating: number;
+    distanceKm?: number | null;
+    images?: PlaceImage[];
     createdBy: string;
     approvedBy: string;
     approvedAt: string;

@@ -12,6 +12,8 @@ export interface UserProfile {
   avatarUrl: string;
   role: number;
   status: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface UpdateProfileRequest {

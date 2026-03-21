@@ -494,8 +494,8 @@ const PLACE_FALLBACK_IMAGES = [
 
 export const DestinationCard = ({ place, index, type = 'places', resourceType = 0 }: { place: Place; index: number; type?: 'places' | 'events'; resourceType?: number }) => {
   const navigate = useNavigate();
-  const imgUrl = PLACE_FALLBACK_IMAGES[index % PLACE_FALLBACK_IMAGES.length];
-  const displayName = place.name || (place as any).title || "Chưa có tên";
+  const imgUrl = place.images?.[0]?.url || PLACE_FALLBACK_IMAGES[index % PLACE_FALLBACK_IMAGES.length];
+  const displayName = place.title || (place as any).name || "Chưa có tên";
   
   return (
     <div 

@@ -79,13 +79,14 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
         );
     }
 
-    // fallback mapping since Places object doesn't have an imageUrl field directly
-    const fallbackImage = "https://images.unsplash.com/photo-1541432901042-2b8bd6f8892d?q=80&w=800";
-    const thumbnails = [
-        "https://images.unsplash.com/photo-1603566234586-22a3d0628e35?q=80&w=400",
-        "https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=400",
-        "https://images.unsplash.com/photo-1504280741564-f20387431e67?q=80&w=400"
-    ];
+    const fallbackImage = detail.images?.[0]?.url || "https://images.unsplash.com/photo-1541432901042-2b8bd6f8892d?q=80&w=800";
+    const thumbnails = detail.images?.length && detail.images.length > 1 
+        ? detail.images.slice(1, 4).map((img: any) => img.url)
+        : [
+            "https://images.unsplash.com/photo-1603566234586-22a3d0628e35?q=80&w=400",
+            "https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=400",
+            "https://images.unsplash.com/photo-1504280741564-f20387431e67?q=80&w=400"
+        ];
 
     return (
         <div className="w-full bg-white font-['Inter'] min-h-screen flex flex-col">
@@ -118,7 +119,7 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                     <div className="lg:w-[55%] flex flex-col gap-6">
                         {/* Main Image */}
                         <div className="w-full h-80 sm:h-96 md:h-[450px] overflow-hidden rounded-3xl shadow-lg bg-gray-100 relative group">
-                            <img src={fallbackImage} alt={detail.name || (detail as any).title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                            <img src={fallbackImage} alt={detail.title || (detail as any).name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                         </div>
                         {/* Thumbnails */}
                         <div className="grid grid-cols-3 gap-4">
@@ -143,7 +144,7 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                         {/* Title and Rating boxed */}
                         <div className="border-2 border-blue-100 rounded-3xl p-6 shadow-sm relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-10"></div>
-                            <h1 className="text-3xl font-extrabold text-[#00008A] mb-3 pr-8 leading-tight">{detail.name || (detail as any).title}</h1>
+                            <h1 className="text-3xl font-extrabold text-[#00008A] mb-3 pr-8 leading-tight">{detail.title || (detail as any).name}</h1>
                             <div className="flex items-center gap-2 mb-4 bg-yellow-50 inline-flex px-3 py-1.5 rounded-xl border border-yellow-200">
                                 <div className="flex items-center">
                                     {[1, 2, 3, 4, 5].map(star => (
