@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, LogOut, X, Send, Pencil, Check, Star } from 'lucide-react';
+import { Search, LogOut, X, Send, Pencil, Check, Star, ChevronDown } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
@@ -10,6 +10,7 @@ import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
 import { clearTokens } from '../utils/headerApi';
 import { addUserMessage, askChatbotThunk } from '../store/slice/ChatbotGeminiSlice';
 import { fetchPlacesPage1Thunk, fetchPlacesPage2Thunk } from '../store/slice/PlacesSlice';
+import { searchDiscoveryThunk, setDiscoveryType, setDiscoveryQuery, setDiscoveryRating } from '../store/slice/DiscoverySlice';
 import type { Place } from '../services/PlacesServices';
 import bannerImg from '../assets/images/banner.jpg';
 import planeImg from '../assets/images/plane.png';
@@ -139,8 +140,8 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
                     type="button"
                     onClick={() => toggleCat(cat.id)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 hover:scale-105 ${selected.has(cat.id)
-                        ? 'border-[#00008A] bg-[#00008A] text-white shadow-md'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#00008A] hover:text-[#00008A]'
+                      ? 'border-[#00008A] bg-[#00008A] text-white shadow-md'
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-[#00008A] hover:text-[#00008A]'
                       }`}
                   >
                     {TYPE_EMOJI[cat.type] ?? '📌'} {cat.name}
@@ -157,8 +158,8 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
             onClick={handleSave}
             disabled={isLoading || saveSuccess}
             className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold text-white transition ${saveSuccess
-                ? 'bg-green-500'
-                : 'bg-[#00008A] hover:bg-[#0000aa] active:scale-95'
+              ? 'bg-green-500'
+              : 'bg-[#00008A] hover:bg-[#0000aa] active:scale-95'
               } disabled:opacity-60`}
           >
             {saveSuccess ? (
@@ -535,11 +536,111 @@ const SkeletonCard = () => (
 export function HomePage() {
   const dispatch = useDispatch<AppDispatch>();
   const { page1, page2, loading1, loading2 } = useSelector((s: RootState) => s.places);
+  const { items: discoveryItems, loading: discoveryLoading, isSearched, type: discoveryType, currentRating, currentQuery, currentPage, totalPages } = useSelector((s: RootState) => s.discovery);
+
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     dispatch(fetchPlacesPage1Thunk());
     dispatch(fetchPlacesPage2Thunk());
   }, [dispatch]);
+
+  const scrollToResults = () => {
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleSearchClick = () => {
+    dispatch(searchDiscoveryThunk({ type: discoveryType, search: currentQuery, rating: currentRating, page: 1 }));
+    scrollToResults();
+  };
+
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value as 'places' | 'events';
+    dispatch(setDiscoveryType(newType));
+    dispatch(searchDiscoveryThunk({ type: newType, search: currentQuery, rating: currentRating, page: 1 }));
+  };
+
+  const handleRatingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    const newRating = val ? Number(val) : null;
+    dispatch(setDiscoveryRating(newRating));
+    dispatch(searchDiscoveryThunk({ type: discoveryType, search: currentQuery, rating: newRating, page: 1 }));
+  };
+
+  const handlePageChange = (page: number) => {
+    dispatch(searchDiscoveryThunk({ type: discoveryType, search: currentQuery, rating: currentRating, page }));
+    scrollToResults();
+  };
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    let pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+        for (let i = 1; i <= totalPages; i++) {
+            pages.push(i);
+        }
+    } else {
+        if (currentPage <= 3) {
+            pages = [1, 2, 3, 4, 5, '...', totalPages];
+        } else if (currentPage >= totalPages - 2) {
+            pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        } else {
+            pages = [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+        }
+    }
+
+    return (
+        <div className="col-span-full mt-8 flex justify-center items-center gap-2">
+            <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || discoveryLoading}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                currentPage === 1 || discoveryLoading
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-[#00008A] hover:bg-[#00008A] hover:text-white shadow-sm ring-1 ring-[#00008A]/20'
+                }`}
+            >
+                Trước
+            </button>
+            <div className="flex gap-1 items-center">
+                {pages.map((p, idx) => (
+                    p === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 font-bold">...</span>
+                    ) : (
+                        <button
+                            key={p}
+                            onClick={() => handlePageChange(p as number)}
+                            disabled={discoveryLoading || currentPage === p}
+                            className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
+                            currentPage === p
+                                ? 'bg-[#00008A] text-white shadow-md'
+                                : 'bg-white text-gray-700 hover:bg-[#00008A]/10 ring-1 ring-gray-200'
+                            }`}
+                        >
+                            {p}
+                        </button>
+                    )
+                ))}
+            </div>
+            <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages || discoveryLoading}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                currentPage === totalPages || discoveryLoading
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-[#00008A] hover:bg-[#00008A] hover:text-white shadow-sm ring-1 ring-[#00008A]/20'
+                }`}
+            >
+                Sau
+            </button>
+        </div>
+    );
+  };
 
   return (
     <div className="w-full bg-white font-['Inter']">
@@ -582,16 +683,21 @@ export function HomePage() {
                 <input
                   type="text"
                   placeholder="Tìm kiếm ngay"
+                  value={currentQuery}
+                  onChange={(e) => dispatch(setDiscoveryQuery(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSearchClick();
+                  }}
                   className="h-full w-full bg-transparent px-8 text-lg text-[#002B6B] placeholder-[#002B6B]/60 outline-none"
                 />
-                <button className="flex h-full items-center justify-center px-6 text-[#002B6B] transition-colors hover:text-blue-900">
+                <button onClick={handleSearchClick} className="flex h-full items-center justify-center px-6 text-[#002B6B] transition-colors hover:text-blue-900">
                   <Search size={28} />
                 </button>
               </div>
             </div>
 
             {/* CTA Button */}
-            <button className="group mt-4 flex items-center justify-center gap-3 rounded-full bg-[#E0F7FA] px-8 py-4 font-bold text-[#002B6B] shadow-lg transition-all hover:-translate-y-1 hover:bg-white hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] active:translate-y-0 disabled:opacity-70">
+            <button onClick={handleSearchClick} className="group mt-4 flex items-center justify-center gap-3 rounded-full bg-[#E0F7FA] px-8 py-4 font-bold text-[#002B6B] shadow-lg transition-all hover:-translate-y-1 hover:bg-white hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] active:translate-y-0 disabled:opacity-70">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm overflow-hidden">
                 <img src={locationImg} alt="location" className="h-7 w-7 object-contain" />
               </div>
@@ -602,53 +708,117 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Nào mình cùng vi vu — Page 1 */}
-      <section className="mx-auto mt-16 max-w-6xl px-4 py-8">
-        <div className="mb-12 flex items-center justify-center gap-4">
-          <img src={text2Img} alt="Nào mình cùng vi vu" className="h-16 object-contain drop-shadow-md" />
-          <div className="animate-bounce">
-            <img src={chatbotImg} alt="chatbot" className="h-16 w-16 object-contain" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-          {loading1
-            ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-            : page1.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
-          }
-        </div>
-      </section>
+      <div ref={resultsRef} className="scroll-mt-10">
+        {isSearched ? (
+          <section className="mx-auto mt-16 max-w-7xl px-4 py-8 flex flex-col md:flex-row gap-8 min-h-[50vh]">
+            {/* Sidebar */}
+            <div className="w-full md:w-64 flex-shrink-0">
+              <div className="bg-[#E0FAFA] rounded-3xl p-6 flex flex-col gap-6 sticky top-24">
+                <div>
+                  <label className="block text-[15px] font-bold text-[#00008A] mb-3">Loại hình</label>
+                  <div className="relative">
+                    <select
+                      value={discoveryType}
+                      onChange={handleTypeChange}
+                      className="w-full appearance-none rounded-xl border-none bg-white px-5 py-3.5 text-sm font-bold text-gray-800 shadow-sm outline-none ring-1 ring-white focus:ring-2 focus:ring-[#00008A]/30 transition-all cursor-pointer"
+                    >
+                      <option value="places">Địa điểm</option>
+                      <option value="events">Sự kiện</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+                      <ChevronDown size={18} className="text-[#00008A]" />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[15px] font-bold text-[#00008A] mb-3">Đánh giá</label>
+                  <div className="relative">
+                    <select
+                      value={currentRating || ''}
+                      onChange={handleRatingChange}
+                      className="w-full appearance-none rounded-xl border-none bg-white px-5 py-3.5 text-sm font-bold text-gray-800 shadow-sm outline-none ring-1 ring-white focus:ring-2 focus:ring-[#00008A]/30 transition-all cursor-pointer"
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="5">5 ⭐</option>
+                      <option value="4">4 ⭐</option>
+                      <option value="3">3 ⭐</option>
+                      <option value="2">2 ⭐</option>
+                      <option value="1">1 ⭐</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+                      <ChevronDown size={18} className="text-[#00008A]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-      {/* Airplane Info Section */}
-      <section className="relative mt-8 mb-8 overflow-hidden py-32 sm:py-40">
-        <div
-          className="absolute inset-0 bg-gradient-to-b from-white to-[#D6FFFC]"
-          style={{ clipPath: 'polygon(0% 50%, 8% 0%, 92% 0%, 100% 50%, 92% 100%, 8% 100%)' }}
-        ></div>
+            {/* Grid */}
+            <div className="flex-1">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 min-h-[500px] content-start">
+                {discoveryLoading ? (
+                  Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
+                ) : discoveryItems.length > 0 ? (
+                  discoveryItems.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
+                ) : (
+                  <div className="col-span-full py-12 text-center text-gray-500 font-medium">Không tìm thấy kết quả nào.</div>
+                )}
+                {!discoveryLoading && renderPagination()}
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
+            {/* Nào mình cùng vi vu — Page 1 */}
+            <section className="mx-auto mt-16 max-w-6xl px-4 py-8">
+              <div className="mb-12 flex items-center justify-center gap-4">
+                <img src={text2Img} alt="Nào mình cùng vi vu" className="h-16 object-contain drop-shadow-md" />
+                <div className="animate-bounce">
+                  <img src={chatbotImg} alt="chatbot" className="h-16 w-16 object-contain" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
+                {loading1
+                  ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+                  : page1.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
+                }
+              </div>
+            </section>
 
-        <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-4 md:flex-row md:gap-8">
-          <div className="w-full flex-1 mb-8 md:mb-0 transform transition-transform duration-1000 hover:scale-105">
-            <img src={planeImg} alt="Airplane graphic" className="w-[130%] -ml-[15%] scale-125 drop-shadow-2xl md:w-[150%] md:-ml-[25%]" />
-          </div>
-          <div className="flex-1 px-4 md:pl-12">
-            <p className="text-left font-medium text-[#00008A] text-lg md:text-xl leading-[1.8] max-w-md">
-              Tại đây, bạn có thể khám phá các địa điểm nổi bật, trải nghiệm văn hóa – ẩm thực đặc sắc, xem đánh giá thực tế từ cộng đồng và dễ dàng lựa chọn hành trình phù hợp với sở thích của mình.
-            </p>
-          </div>
-        </div>
-      </section>
+            {/* Airplane Info Section */}
+            <section className="relative mt-8 mb-8 overflow-hidden py-32 sm:py-40">
+              <div
+                className="absolute inset-0 bg-gradient-to-b from-white to-[#D6FFFC]"
+                style={{ clipPath: 'polygon(0% 50%, 8% 0%, 92% 0%, 100% 50%, 92% 100%, 8% 100%)' }}
+              ></div>
 
-      {/* Bạn thích trải nghiệm — Page 2 */}
-      <section className="mx-auto mt-8 max-w-6xl px-4 py-16">
-        <div className="mb-12 flex justify-center">
-          <img src={text3Img} alt="Bạn thích trải nghiệm" className="h-16 object-contain drop-shadow-md" />
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-          {loading2
-            ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-            : page2.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
-          }
-        </div>
-      </section>
+              <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-4 md:flex-row md:gap-8">
+                <div className="w-full flex-1 mb-8 md:mb-0 transform transition-transform duration-1000 hover:scale-105">
+                  <img src={planeImg} alt="Airplane graphic" className="w-[130%] -ml-[15%] scale-125 drop-shadow-2xl md:w-[150%] md:-ml-[25%]" />
+                </div>
+                <div className="flex-1 px-4 md:pl-12">
+                  <p className="text-left font-medium text-[#00008A] text-lg md:text-xl leading-[1.8] max-w-md">
+                    Tại đây, bạn có thể khám phá các địa điểm nổi bật, trải nghiệm văn hóa – ẩm thực đặc sắc, xem đánh giá thực tế từ cộng đồng và dễ dàng lựa chọn hành trình phù hợp với sở thích của mình.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Bạn thích trải nghiệm — Page 2 */}
+            <section className="mx-auto mt-8 max-w-6xl px-4 py-16">
+              <div className="mb-12 flex justify-center">
+                <img src={text3Img} alt="Bạn thích trải nghiệm" className="h-16 object-contain drop-shadow-md" />
+              </div>
+              <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
+                {loading2
+                  ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+                  : page2.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
+                }
+              </div>
+            </section>
+          </>
+        )}
+      </div>
 
       {/* Footer */}
       <footer className="mt-8 h-20 w-full bg-[#00008A]"></footer>
