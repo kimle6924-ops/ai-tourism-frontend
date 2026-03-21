@@ -7,6 +7,8 @@ import chatbotReducer from './slice/ChatbotGeminiSlice';
 import preferencesReducer from './slice/PreferencesSlice';
 import placesReducer from './slice/PlacesSlice';
 import discoveryReducer from './slice/DiscoverySlice';
+import locationDetailReducer from './slice/LocationDetaiSlice';
+import reviewReducer from './slice/ReviewSlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +20,8 @@ export const store = configureStore({
     preferences: preferencesReducer,
     places: placesReducer,
     discovery: discoveryReducer,
+    locationDetail: locationDetailReducer,
+    reviews: reviewReducer,
   },
 });
 

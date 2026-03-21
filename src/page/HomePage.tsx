@@ -179,7 +179,7 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
 // ─────────────────────────────────────────────
 // Profile Dropdown
 // ─────────────────────────────────────────────
-function ProfileDropdown() {
+export function ProfileDropdown() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const [open, setOpen] = useState(false);
@@ -492,14 +492,20 @@ const PLACE_FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=400',
 ];
 
-const DestinationCard = ({ place, index }: { place: Place; index: number }) => {
+export const DestinationCard = ({ place, index, type = 'places', resourceType = 0 }: { place: Place; index: number; type?: 'places' | 'events'; resourceType?: number }) => {
+  const navigate = useNavigate();
   const imgUrl = PLACE_FALLBACK_IMAGES[index % PLACE_FALLBACK_IMAGES.length];
+  const displayName = place.name || (place as any).title || "Chưa có tên";
+  
   return (
-    <div className="relative h-72 w-full overflow-hidden rounded-2xl shadow-lg md:h-80 group cursor-pointer">
-      <img src={imgUrl} alt={place.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+    <div 
+      onClick={() => navigate({ to: `/${type}/${place.id}`, search: { resourceType } })}
+      className="relative h-72 w-full overflow-hidden rounded-2xl shadow-lg md:h-80 group cursor-pointer"
+    >
+      <img src={imgUrl} alt={displayName} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 left-0 p-4 w-full">
-        <h3 className="text-base font-bold text-white drop-shadow-lg line-clamp-1">{place.name}</h3>
+        <h3 className="text-base font-bold text-white drop-shadow-lg line-clamp-1">{displayName}</h3>
         {/* Star rating */}
         <div className="mt-1 flex items-center gap-1">
           {[1, 2, 3, 4, 5].map(star => (
@@ -527,7 +533,7 @@ const DestinationCard = ({ place, index }: { place: Place; index: number }) => {
   );
 };
 
-const SkeletonCard = () => (
+export const SkeletonCard = () => (
   <div className="h-72 w-full overflow-hidden rounded-2xl bg-gray-200 md:h-80 animate-pulse">
     <div className="h-full w-full bg-gradient-to-br from-gray-200 to-gray-300" />
   </div>
@@ -759,7 +765,7 @@ export function HomePage() {
                 {discoveryLoading ? (
                   Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
                 ) : discoveryItems.length > 0 ? (
-                  discoveryItems.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
+                  discoveryItems.map((place, i) => <DestinationCard key={place.id} place={place} index={i} type={discoveryType} resourceType={discoveryType === 'places' ? 0 : 1} />)
                 ) : (
                   <div className="col-span-full py-12 text-center text-gray-500 font-medium">Không tìm thấy kết quả nào.</div>
                 )}
@@ -780,7 +786,7 @@ export function HomePage() {
               <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
                 {loading1
                   ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-                  : page1.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
+                  : page1.map((place, i) => <DestinationCard key={place.id} place={place} index={i} type="places" resourceType={0} />)
                 }
               </div>
             </section>
@@ -812,7 +818,7 @@ export function HomePage() {
               <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
                 {loading2
                   ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-                  : page2.map((place, i) => <DestinationCard key={place.id} place={place} index={i} />)
+                  : page2.map((place, i) => <DestinationCard key={place.id} place={place} index={i} type="places" resourceType={0} />)
                 }
               </div>
             </section>
