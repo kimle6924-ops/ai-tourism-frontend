@@ -18,7 +18,8 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend
 } from 'recharts';
-import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText, Tag } from 'lucide-react';
+import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText, Tag, ImageIcon } from 'lucide-react';
+import MediaManager from '../components/MediaManager';
 
 type AdminTab = 'overview' | 'users' | 'places' | 'events' | 'moderation' | 'categories';
 
@@ -353,6 +354,7 @@ export function AdminPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
+    const [mediaTarget, setMediaTarget] = useState<{ resourceType: ResourceType; resourceId: string; title: string } | null>(null);
 
     // Category form fields
     const [catName, setCatName] = useState('');
@@ -890,6 +892,9 @@ export function AdminPage() {
                                                             <button onClick={() => handleOpenEditPlace(p)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa">
                                                                 <Pencil size={15} />
                                                             </button>
+                                                            <button onClick={() => setMediaTarget({ resourceType: 0, resourceId: p.id, title: p.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Quản lý ảnh">
+                                                                <ImageIcon size={15} />
+                                                            </button>
                                                             <button onClick={() => handleDeletePlace(p.id, p.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa">
                                                                 <Trash2 size={15} />
                                                             </button>
@@ -984,6 +989,9 @@ export function AdminPage() {
                                                         <div className="flex justify-end gap-1">
                                                             <button onClick={() => handleOpenEditEvent(ev)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa">
                                                                 <Pencil size={15} />
+                                                            </button>
+                                                            <button onClick={() => setMediaTarget({ resourceType: 1, resourceId: ev.id, title: ev.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Quản lý ảnh">
+                                                                <ImageIcon size={15} />
                                                             </button>
                                                             <button onClick={() => handleDeleteEvent(ev.id, ev.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa">
                                                                 <Trash2 size={15} />
@@ -1335,6 +1343,16 @@ export function AdminPage() {
                         )}
                     </div>
                 </div>
+            )}
+
+            {/* Media Manager Modal */}
+            {mediaTarget && (
+                <MediaManager
+                    resourceType={mediaTarget.resourceType}
+                    resourceId={mediaTarget.resourceId}
+                    resourceTitle={mediaTarget.title}
+                    onClose={() => setMediaTarget(null)}
+                />
             )}
         </div>
     );

@@ -71,6 +71,22 @@
   - CRUD đầy đủ + confirm dialog + phân trang
 
 ---
-## Phase 5: Quản lý Hình ảnh (dùng chung) — PENDING
+## Phase 5: Quản lý Hình ảnh (dùng chung) — DONE
+
+**Files tạo mới:**
+- `src/services/MediaService.ts` — Service: getSignature, uploadToCloudinary, finalize, getByResource, setPrimary, reorder, delete
+- `src/store/slice/MediaSlice.ts` — Redux slice với 4 thunks (fetch, upload 3-step, setPrimary, delete)
+- `src/components/MediaManager.tsx` — Component dùng chung cho Place & Event
+
+**Files cập nhật:**
+- `src/store/index.ts` — Đăng ký `media` reducer
+- `src/page/AdminPage.tsx`:
+  - Thêm nút [Ảnh] (icon tím) vào cột Thao tác của bảng Địa điểm và Sự kiện
+  - Click mở MediaManager modal
+  - MediaManager: upload multi-file, grid ảnh, đặt ảnh chính (★), xóa ảnh, hiển thị kích thước/dung lượng
+
+**Upload flow:** Lấy signature từ BE → Upload trực tiếp lên Cloudinary → Gọi finalize để lưu DB
+
+---
 ## Phase 6: Trang Contributor — PENDING
 ## Phase 7: Tách components dùng chung — PENDING

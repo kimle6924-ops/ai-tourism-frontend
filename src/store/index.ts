@@ -17,6 +17,7 @@ import adminPlacesReducer from './slice/AdminPlaceSlice';
 import adminEventsReducer from './slice/AdminEventSlice';
 import moderationReducer from './slice/ModerationSlice';
 import adminCategoriesReducer from './slice/AdminCategorySlice';
+import mediaReducer from './slice/MediaSlice';
 
 export const store = configureStore({
   reducer: {
@@ -38,6 +39,7 @@ export const store = configureStore({
     adminEvents: adminEventsReducer,
     moderation: moderationReducer,
     adminCategories: adminCategoriesReducer,
+    media: mediaReducer,
   },
 });
 
