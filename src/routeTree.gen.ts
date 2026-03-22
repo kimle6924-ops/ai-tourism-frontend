@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ContributorRouteImport } from './routes/contributor'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdministrativeUnitsRouteImport } from './routes/administrative-units'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlacesIdRouteImport } from './routes/places.$id'
 import { Route as EventsIdRouteImport } from './routes/events.$id'
 
+const ContributorRoute = ContributorRouteImport.update({
+  id: '/contributor',
+  path: '/contributor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
+  '/contributor': typeof ContributorRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
+  '/contributor': typeof ContributorRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
+  '/contributor': typeof ContributorRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/administrative-units'
     | '/auth'
+    | '/contributor'
     | '/events/$id'
     | '/places/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/administrative-units'
     | '/auth'
+    | '/contributor'
     | '/events/$id'
     | '/places/$id'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/administrative-units'
     | '/auth'
+    | '/contributor'
     | '/events/$id'
     | '/places/$id'
   fileRoutesById: FileRoutesById
@@ -117,12 +129,20 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AdministrativeUnitsRoute: typeof AdministrativeUnitsRoute
   AuthRoute: typeof AuthRoute
+  ContributorRoute: typeof ContributorRoute
   EventsIdRoute: typeof EventsIdRoute
   PlacesIdRoute: typeof PlacesIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/contributor': {
+      id: '/contributor'
+      path: '/contributor'
+      fullPath: '/contributor'
+      preLoaderRoute: typeof ContributorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AdministrativeUnitsRoute: AdministrativeUnitsRoute,
   AuthRoute: AuthRoute,
+  ContributorRoute: ContributorRoute,
   EventsIdRoute: EventsIdRoute,
   PlacesIdRoute: PlacesIdRoute,
 }

@@ -16,14 +16,14 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
                 <button
                     onClick={() => onPageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition"
+                    className="px-3 py-1 border rounded bg-white text-gray-900 text-sm hover:bg-gray-100 disabled:opacity-50 transition"
                 >
                     Trước
                 </button>
                 <button
                     onClick={() => onPageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition"
+                    className="px-3 py-1 border rounded bg-white text-gray-900 text-sm hover:bg-gray-100 disabled:opacity-50 transition"
                 >
                     Sau
                 </button>

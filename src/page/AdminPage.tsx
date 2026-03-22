@@ -280,7 +280,7 @@ export function AdminPage() {
 
     // ── Moderation handlers ──
     const handleApproveResource = async (resourceType: ResourceType, id: string, title: string) => {
-        const confirm = await Swal.fire({ title: 'Duyệt nội dung?', text: `Duyệt "${title}"?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', cancelButtonColor: '#6c757d', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Ghi chú (không bắt buộc)', inputPlaceholder: 'VD: Đạt yêu cầu' });
+        const confirm = await Swal.fire({ title: 'Duyệt nội dung?', text: `Duyệt "${title}"?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', cancelButtonColor: '#6c757d', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Ghi chú (không bắt buộc)', inputPlaceholder: 'VD: Đạt yêu cầu', customClass: { input: 'text-gray-900 placeholder-gray-500 bg-white' } });
         if (confirm.isConfirmed) {
             const res = await dispatch(approveResourceThunk({ resourceType, id, payload: { note: confirm.value || '' } }));
             if (approveResourceThunk.fulfilled.match(res)) {
@@ -292,7 +292,7 @@ export function AdminPage() {
     };
 
     const handleRejectResource = async (resourceType: ResourceType, id: string, title: string) => {
-        const confirm = await Swal.fire({ title: 'Từ chối nội dung?', text: `Từ chối "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#6c757d', confirmButtonText: 'Từ chối', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Lý do từ chối', inputPlaceholder: 'VD: Thông tin không chính xác', inputValidator: (value) => { if (!value) return 'Vui lòng nhập lý do từ chối'; return null; } });
+        const confirm = await Swal.fire({ title: 'Từ chối nội dung?', text: `Từ chối "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#6c757d', confirmButtonText: 'Từ chối', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Lý do từ chối', inputPlaceholder: 'VD: Thông tin không chính xác', inputValidator: (value) => { if (!value) return 'Vui lòng nhập lý do từ chối'; return null; }, customClass: { input: 'text-gray-900 placeholder-gray-500 bg-white' } });
         if (confirm.isConfirmed) {
             const res = await dispatch(rejectResourceThunk({ resourceType, id, payload: { note: confirm.value || '' } }));
             if (rejectResourceThunk.fulfilled.match(res)) {
@@ -897,15 +897,15 @@ export function AdminPage() {
                         <div className="space-y-4">
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">Tên danh mục *</label>
-                                <input value={catName} onChange={e => setCatName(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Du lịch biển" />
+                                <input value={catName} onChange={e => setCatName(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Du lịch biển" />
                             </div>
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">Slug *</label>
-                                <input value={catSlug} onChange={e => setCatSlug(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: du-lich-bien" />
+                                <input value={catSlug} onChange={e => setCatSlug(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: du-lich-bien" />
                             </div>
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">Loại</label>
-                                <select value={catType} onChange={e => setCatType(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <select value={catType} onChange={e => setCatType(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
                                     <option value="theme">Chủ đề</option>
                                     <option value="style">Phong cách</option>
                                     <option value="activity">Hoạt động</option>

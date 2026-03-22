@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { ProfileDropdown } from './HomePage';
 import type { AppDispatch, RootState } from '../store';
@@ -124,11 +124,11 @@ export function ContributorPage() {
 
     // ── Moderation handlers ──
     const handleApproveResource = async (resourceType: ResourceType, id: string, title: string) => {
-        const c = await Swal.fire({ title: 'Duyệt?', text: `Duyệt "${title}"?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Ghi chú', inputPlaceholder: 'Không bắt buộc' });
+        const c = await Swal.fire({ title: 'Duyệt?', text: `Duyệt "${title}"?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Ghi chú', inputPlaceholder: 'Không bắt buộc', customClass: { input: 'text-gray-900 placeholder-gray-500 bg-white' } });
         if (c.isConfirmed) { const res = await dispatch(approveResourceThunk({ resourceType, id, payload: { note: c.value || '' } })); if (approveResourceThunk.fulfilled.match(res)) Swal.fire('Đã duyệt', '', 'success'); else Swal.fire('Lỗi', res.payload as string, 'error'); }
     };
     const handleRejectResource = async (resourceType: ResourceType, id: string, title: string) => {
-        const c = await Swal.fire({ title: 'Từ chối?', text: `Từ chối "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Từ chối', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Lý do', inputPlaceholder: 'Bắt buộc nhập', inputValidator: (v) => !v ? 'Vui lòng nhập lý do' : null });
+        const c = await Swal.fire({ title: 'Từ chối?', text: `Từ chối "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Từ chối', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Lý do', inputPlaceholder: 'Bắt buộc nhập', inputValidator: (v) => !v ? 'Vui lòng nhập lý do' : null, customClass: { input: 'text-gray-900 placeholder-gray-500 bg-white' } });
         if (c.isConfirmed) { const res = await dispatch(rejectResourceThunk({ resourceType, id, payload: { note: c.value || '' } })); if (rejectResourceThunk.fulfilled.match(res)) Swal.fire('Đã từ chối', '', 'success'); else Swal.fire('Lỗi', res.payload as string, 'error'); }
     };
     const handleViewLogs = (resourceType: ResourceType, id: string) => { dispatch(fetchLogsThunk({ resourceType, id })); setShowLogsModal(true); };
