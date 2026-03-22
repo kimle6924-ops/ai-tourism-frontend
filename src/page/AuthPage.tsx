@@ -101,7 +101,14 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
                 </div>
 
                 {error && (
-                    <p className="rounded-lg bg-red-50 px-4 py-2 text-center text-sm text-red-500">{error}</p>
+                    <div className="rounded-lg bg-red-50 px-4 py-2 text-center text-sm text-red-500">
+                        {error.includes('pending') || error.includes('PENDING')
+                            ? 'Tài khoản đang chờ Admin duyệt. Vui lòng đợi hoặc liên hệ quản trị viên.'
+                            : error.includes('Locked') || error.includes('LOCKED')
+                                ? 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.'
+                                : error
+                        }
+                    </div>
                 )}
 
                 <button
@@ -450,6 +457,8 @@ function InterestsStep({ registerData, roleData }: { registerData: RegisterData;
         });
     };
 
+    const [registerSuccess, setRegisterSuccess] = useState(false);
+
     const handleConfirm = async () => {
         const categoryIds = selected.size > 0 ? Array.from(selected) : [];
 
@@ -464,7 +473,13 @@ function InterestsStep({ registerData, roleData }: { registerData: RegisterData;
         );
         if (!registerThunk.fulfilled.match(regResult)) return;
 
-        // 2. Tự đăng nhập với thông tin vừa đăng ký
+        // 2. Contributor cần admin duyệt → không auto-login
+        if (roleData.role === 1) {
+            setRegisterSuccess(true);
+            return;
+        }
+
+        // 3. User thường → tự đăng nhập
         const loginResult = await dispatch(
             loginThunk({ email: registerData.email, password: registerData.password }),
         );
@@ -472,13 +487,34 @@ function InterestsStep({ registerData, roleData }: { registerData: RegisterData;
             const role = loginResult.payload.user.role;
             if (role === 0) {
                 navigate({ to: '/admin' });
-            } else if (role === 1) {
-                navigate({ to: '/contributor' });
             } else {
                 navigate({ to: '/' });
             }
         }
     };
+
+    // Contributor registered successfully — show pending message
+    if (registerSuccess) {
+        return (
+            <div className="w-full max-w-md rounded-2xl bg-white/95 backdrop-blur-md px-8 py-10 shadow-2xl text-center">
+                <div className="text-5xl mb-4">⏳</div>
+                <h2 className="mb-3 font-bold text-emerald-700 text-2xl">Đăng ký thành công!</h2>
+                <p className="text-gray-600 mb-2">
+                    Tài khoản của bạn đang chờ được <span className="font-semibold">Admin duyệt</span>.
+                </p>
+                <p className="text-sm text-gray-500 mb-6">
+                    Bạn sẽ có thể đăng nhập sau khi tài khoản được phê duyệt.
+                    Vui lòng liên hệ quản trị viên nếu cần hỗ trợ.
+                </p>
+                <button
+                    onClick={() => navigate({ to: '/auth' })}
+                    className="rounded-xl bg-[#00008A] px-8 py-3 font-bold text-white transition hover:bg-[#0000aa]"
+                >
+                    Về trang đăng nhập
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full max-w-2xl rounded-2xl bg-white/90 backdrop-blur-md px-8 py-10 shadow-2xl">
