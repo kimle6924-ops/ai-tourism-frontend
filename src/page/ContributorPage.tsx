@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { ProfileDropdown } from './HomePage';
 import type { AppDispatch, RootState } from '../store';
@@ -364,10 +364,12 @@ export function ContributorPage() {
             </div>
 
             {/* Modals */}
-            {showPlaceForm && <PlaceFormModal place={selectedPlace} categories={categories} onClose={() => setShowPlaceForm(false)} onSubmit={handlePlaceFormSubmit} loading={placeActionLoading} accentColor="emerald" />}
-            {showEventForm && <EventFormModal event={selectedEvent} categories={categories} onClose={() => setShowEventForm(false)} onSubmit={handleEventFormSubmit} loading={eventActionLoading} accentColor="emerald" />}
+            {showPlaceForm && <PlaceFormModal place={selectedPlace} categories={categories} onClose={() => setShowPlaceForm(false)} onSubmit={handlePlaceFormSubmit} loading={placeActionLoading} accentColor="emerald" forcedAdministrativeUnitId={user?.administrativeUnitId} forcedAdministrativeUnitLabel={managedArea ? (managedArea.level === 1 && managedParent ? `${managedArea.name}, ${managedParent.name}` : managedArea.name) : undefined} />}
+            {showEventForm && <EventFormModal event={selectedEvent} categories={categories} onClose={() => setShowEventForm(false)} onSubmit={handleEventFormSubmit} loading={eventActionLoading} accentColor="emerald" forcedAdministrativeUnitId={user?.administrativeUnitId} forcedAdministrativeUnitLabel={managedArea ? (managedArea.level === 1 && managedParent ? `${managedArea.name}, ${managedParent.name}` : managedArea.name) : undefined} />}
             {mediaTarget && <MediaManager resourceType={mediaTarget.resourceType} resourceId={mediaTarget.resourceId} resourceTitle={mediaTarget.title} onClose={() => setMediaTarget(null)} />}
             {showLogsModal && <LogsModal logs={logs} loading={logsLoading} onClose={() => { setShowLogsModal(false); dispatch(clearLogs()); }} />}
         </div>
     );
 }
+
+

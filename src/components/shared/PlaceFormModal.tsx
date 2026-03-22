@@ -1,6 +1,7 @@
-import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import type { PlaceItem, CreatePlacePayload } from '../../services/AdminPlaceService';
 import type { Category } from '../../services/CategoryService';
+import AdministrativeUnitService, { type AdministrativeUnit } from '../../services/AdministrativeUnitService';
 import Swal from 'sweetalert2';
 import { X } from 'lucide-react';
 
@@ -11,21 +12,93 @@ interface PlaceFormModalProps {
     onSubmit: (data: CreatePlacePayload) => void;
     loading: boolean;
     accentColor?: 'blue' | 'emerald';
+    forcedAdministrativeUnitId?: string | null;
+    forcedAdministrativeUnitLabel?: string;
 }
 
-export default function PlaceFormModal({ place, categories, onClose, onSubmit, loading, accentColor = 'blue' }: PlaceFormModalProps) {
+export default function PlaceFormModal({
+    place,
+    categories,
+    onClose,
+    onSubmit,
+    loading,
+    accentColor = 'blue',
+    forcedAdministrativeUnitId,
+    forcedAdministrativeUnitLabel,
+}: PlaceFormModalProps) {
     const [title, setTitle] = useState(place?.title || '');
     const [description, setDescription] = useState(place?.description || '');
     const [address, setAddress] = useState(place?.address || '');
-    const [administrativeUnitId, setAdministrativeUnitId] = useState(place?.administrativeUnitId || '');
     const [latitude, setLatitude] = useState<string>(place?.latitude?.toString() || '');
     const [longitude, setLongitude] = useState<string>(place?.longitude?.toString() || '');
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(place?.categoryIds || []);
     const [tags, setTags] = useState(place?.tags?.join(', ') || '');
 
+    const [provinces, setProvinces] = useState<AdministrativeUnit[]>([]);
+    const [wards, setWards] = useState<AdministrativeUnit[]>([]);
+    const [selectedProvinceId, setSelectedProvinceId] = useState('');
+    const [selectedWardId, setSelectedWardId] = useState('');
+
+    const isForcedArea = !!forcedAdministrativeUnitId;
+
     const accent = accentColor === 'emerald'
         ? { focus: 'focus:border-emerald-500 focus:ring-emerald-500', btn: 'bg-emerald-600 hover:bg-emerald-700', chip: 'bg-emerald-600 text-white' }
         : { focus: 'focus:border-blue-500 focus:ring-blue-500', btn: 'bg-blue-600 hover:bg-blue-700', chip: 'bg-blue-600 text-white' };
+
+    useEffect(() => {
+        if (isForcedArea) return;
+
+        const loadProvinces = async () => {
+            const res = await AdministrativeUnitService.getByLevel(0);
+            if (!res.success) return;
+            setProvinces(res.data);
+        };
+
+        loadProvinces();
+    }, [isForcedArea]);
+
+    useEffect(() => {
+        if (isForcedArea) return;
+        if (!selectedProvinceId) {
+            setWards([]);
+            setSelectedWardId('');
+            return;
+        }
+
+        const loadWards = async () => {
+            const res = await AdministrativeUnitService.getChildren(selectedProvinceId);
+            if (!res.success) {
+                setWards([]);
+                return;
+            }
+            setWards(res.data.filter((u) => u.level === 1));
+        };
+
+        loadWards();
+    }, [selectedProvinceId, isForcedArea]);
+
+    useEffect(() => {
+        if (isForcedArea || !place?.administrativeUnitId) return;
+
+        const hydrateArea = async () => {
+            const res = await AdministrativeUnitService.getById(place.administrativeUnitId);
+            if (!res.success) return;
+
+            const unit = res.data;
+            if (unit.level === 0) {
+                setSelectedProvinceId(unit.id);
+                setSelectedWardId('');
+                return;
+            }
+
+            if (unit.parentId) {
+                setSelectedProvinceId(unit.parentId);
+                setSelectedWardId(unit.id);
+            }
+        };
+
+        hydrateArea();
+    }, [place?.administrativeUnitId, isForcedArea]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,11 +106,21 @@ export default function PlaceFormModal({ place, categories, onClose, onSubmit, l
             Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning');
             return;
         }
+
+        const administrativeUnitId = isForcedArea
+            ? forcedAdministrativeUnitId!
+            : (selectedWardId || selectedProvinceId);
+
+        if (!administrativeUnitId) {
+            Swal.fire('Thiếu khu vực', 'Vui lòng chọn Tỉnh/Thành hoặc Xã/Phường', 'warning');
+            return;
+        }
+
         onSubmit({
             title: title.trim(),
             description: description.trim(),
             address: address.trim(),
-            administrativeUnitId: administrativeUnitId || '00000000-0000-0000-0000-000000000000',
+            administrativeUnitId,
             latitude: latitude ? parseFloat(latitude) : null,
             longitude: longitude ? parseFloat(longitude) : null,
             categoryIds: selectedCategoryIds,
@@ -72,10 +155,46 @@ export default function PlaceFormModal({ place, categories, onClose, onSubmit, l
                         <label className="mb-1 block text-sm font-medium text-gray-700">Địa chỉ *</label>
                         <input value={address} onChange={e => setAddress(e.target.value)} className={inputCls} placeholder="VD: 123 Đường ABC, Quận XYZ" />
                     </div>
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Mã đơn vị hành chính</label>
-                        <input value={administrativeUnitId} onChange={e => setAdministrativeUnitId(e.target.value)} className={inputCls} placeholder="UUID đơn vị hành chính" />
-                    </div>
+
+                    {isForcedArea ? (
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Khu vực quản lý</label>
+                            <div className="rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                {forcedAdministrativeUnitLabel || 'Theo tài khoản Contributor'}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Tỉnh/Thành phố *</label>
+                                <select
+                                    value={selectedProvinceId}
+                                    onChange={e => setSelectedProvinceId(e.target.value)}
+                                    className={inputCls}
+                                >
+                                    <option value="">Chọn tỉnh/thành</option>
+                                    {provinces.map((p) => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Xã/Phường (tuỳ chọn)</label>
+                                <select
+                                    value={selectedWardId}
+                                    onChange={e => setSelectedWardId(e.target.value)}
+                                    className={inputCls}
+                                    disabled={!selectedProvinceId}
+                                >
+                                    <option value="">Không chọn (dùng UID tỉnh)</option>
+                                    {wards.map((w) => (
+                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ (Latitude)</label>

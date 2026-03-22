@@ -1,6 +1,7 @@
-import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../../services/AdminEventService';
 import type { Category } from '../../services/CategoryService';
+import AdministrativeUnitService, { type AdministrativeUnit } from '../../services/AdministrativeUnitService';
 import Swal from 'sweetalert2';
 import { X } from 'lucide-react';
 
@@ -11,13 +12,23 @@ interface EventFormModalProps {
     onSubmit: (data: CreateEventPayload | UpdateEventPayload) => void;
     loading: boolean;
     accentColor?: 'blue' | 'emerald';
+    forcedAdministrativeUnitId?: string | null;
+    forcedAdministrativeUnitLabel?: string;
 }
 
-export default function EventFormModal({ event, categories, onClose, onSubmit, loading, accentColor = 'blue' }: EventFormModalProps) {
+export default function EventFormModal({
+    event,
+    categories,
+    onClose,
+    onSubmit,
+    loading,
+    accentColor = 'blue',
+    forcedAdministrativeUnitId,
+    forcedAdministrativeUnitLabel,
+}: EventFormModalProps) {
     const [title, setTitle] = useState(event?.title || '');
     const [description, setDescription] = useState(event?.description || '');
     const [address, setAddress] = useState(event?.address || '');
-    const [administrativeUnitId, setAdministrativeUnitId] = useState(event?.administrativeUnitId || '');
     const [latitude, setLatitude] = useState<string>(event?.latitude?.toString() || '');
     const [longitude, setLongitude] = useState<string>(event?.longitude?.toString() || '');
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(event?.categoryIds || []);
@@ -26,9 +37,71 @@ export default function EventFormModal({ event, categories, onClose, onSubmit, l
     const [endAt, setEndAt] = useState(event?.endAt ? event.endAt.slice(0, 16) : '');
     const [eventStatus, setEventStatus] = useState<number>(event?.eventStatus ?? 0);
 
+    const [provinces, setProvinces] = useState<AdministrativeUnit[]>([]);
+    const [wards, setWards] = useState<AdministrativeUnit[]>([]);
+    const [selectedProvinceId, setSelectedProvinceId] = useState('');
+    const [selectedWardId, setSelectedWardId] = useState('');
+
+    const isForcedArea = !!forcedAdministrativeUnitId;
+
     const accent = accentColor === 'emerald'
         ? { focus: 'focus:border-emerald-500 focus:ring-emerald-500', btn: 'bg-emerald-600 hover:bg-emerald-700', chip: 'bg-emerald-600 text-white' }
         : { focus: 'focus:border-blue-500 focus:ring-blue-500', btn: 'bg-blue-600 hover:bg-blue-700', chip: 'bg-blue-600 text-white' };
+
+    useEffect(() => {
+        if (isForcedArea) return;
+
+        const loadProvinces = async () => {
+            const res = await AdministrativeUnitService.getByLevel(0);
+            if (!res.success) return;
+            setProvinces(res.data);
+        };
+
+        loadProvinces();
+    }, [isForcedArea]);
+
+    useEffect(() => {
+        if (isForcedArea) return;
+        if (!selectedProvinceId) {
+            setWards([]);
+            setSelectedWardId('');
+            return;
+        }
+
+        const loadWards = async () => {
+            const res = await AdministrativeUnitService.getChildren(selectedProvinceId);
+            if (!res.success) {
+                setWards([]);
+                return;
+            }
+            setWards(res.data.filter((u) => u.level === 1));
+        };
+
+        loadWards();
+    }, [selectedProvinceId, isForcedArea]);
+
+    useEffect(() => {
+        if (isForcedArea || !event?.administrativeUnitId) return;
+
+        const hydrateArea = async () => {
+            const res = await AdministrativeUnitService.getById(event.administrativeUnitId);
+            if (!res.success) return;
+
+            const unit = res.data;
+            if (unit.level === 0) {
+                setSelectedProvinceId(unit.id);
+                setSelectedWardId('');
+                return;
+            }
+
+            if (unit.parentId) {
+                setSelectedProvinceId(unit.parentId);
+                setSelectedWardId(unit.id);
+            }
+        };
+
+        hydrateArea();
+    }, [event?.administrativeUnitId, isForcedArea]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,11 +109,21 @@ export default function EventFormModal({ event, categories, onClose, onSubmit, l
             Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning');
             return;
         }
+
+        const administrativeUnitId = isForcedArea
+            ? forcedAdministrativeUnitId!
+            : (selectedWardId || selectedProvinceId);
+
+        if (!administrativeUnitId) {
+            Swal.fire('Thiếu khu vực', 'Vui lòng chọn Tỉnh/Thành hoặc Xã/Phường', 'warning');
+            return;
+        }
+
         const base = {
             title: title.trim(),
             description: description.trim(),
             address: address.trim(),
-            administrativeUnitId: administrativeUnitId || '00000000-0000-0000-0000-000000000000',
+            administrativeUnitId,
             latitude: latitude ? parseFloat(latitude) : null,
             longitude: longitude ? parseFloat(longitude) : null,
             categoryIds: selectedCategoryIds,
@@ -48,6 +131,7 @@ export default function EventFormModal({ event, categories, onClose, onSubmit, l
             startAt: new Date(startAt).toISOString(),
             endAt: new Date(endAt).toISOString(),
         };
+
         if (event) {
             onSubmit({ ...base, eventStatus });
         } else {
@@ -102,10 +186,46 @@ export default function EventFormModal({ event, categories, onClose, onSubmit, l
                             </select>
                         </div>
                     )}
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Mã đơn vị hành chính</label>
-                        <input value={administrativeUnitId} onChange={e => setAdministrativeUnitId(e.target.value)} className={inputCls} placeholder="UUID đơn vị hành chính" />
-                    </div>
+
+                    {isForcedArea ? (
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Khu vực quản lý</label>
+                            <div className="rounded-lg border bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                {forcedAdministrativeUnitLabel || 'Theo tài khoản Contributor'}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Tỉnh/Thành phố *</label>
+                                <select
+                                    value={selectedProvinceId}
+                                    onChange={e => setSelectedProvinceId(e.target.value)}
+                                    className={inputCls}
+                                >
+                                    <option value="">Chọn tỉnh/thành</option>
+                                    {provinces.map((p) => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Xã/Phường (tuỳ chọn)</label>
+                                <select
+                                    value={selectedWardId}
+                                    onChange={e => setSelectedWardId(e.target.value)}
+                                    className={inputCls}
+                                    disabled={!selectedProvinceId}
+                                >
+                                    <option value="">Không chọn (dùng UID tỉnh)</option>
+                                    {wards.map((w) => (
+                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ</label>
