@@ -1,5 +1,5 @@
 const config = {
-  baseUrl: '',  // Vite dev proxy handles /api/* → http://localhost:5000
+  baseUrl: import.meta.env.VITE_API_URL || '',
 };
 
 export default config;
