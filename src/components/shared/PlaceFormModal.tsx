@@ -134,7 +134,7 @@ export default function PlaceFormModal({
         );
     };
 
-    const inputCls = `w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 ${accent.focus}`;
+    const inputCls = `w-full rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 ${accent.focus}`;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
@@ -232,3 +232,5 @@ export default function PlaceFormModal({
         </div>
     );
 }
+
+
