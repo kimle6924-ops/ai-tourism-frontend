@@ -49,7 +49,14 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
         e.preventDefault();
         const result = await dispatch(loginThunk({ email, password }));
         if (loginThunk.fulfilled.match(result)) {
-            navigate({ to: '/' });
+            const role = result.payload.user.role;
+            if (role === 0) {
+                navigate({ to: '/admin' });
+            } else if (role === 1) {
+                navigate({ to: '/administrative-units' });
+            } else {
+                navigate({ to: '/' });
+            }
         }
     };
 
@@ -267,7 +274,14 @@ function InterestsStep({ registerData }: { registerData: RegisterData }) {
             loginThunk({ email: registerData.email, password: registerData.password }),
         );
         if (loginThunk.fulfilled.match(loginResult)) {
-            navigate({ to: '/' });
+            const role = loginResult.payload.user.role;
+            if (role === 0) {
+                navigate({ to: '/admin' });
+            } else if (role === 1) {
+                navigate({ to: '/administrative-units' });
+            } else {
+                navigate({ to: '/' });
+            }
         }
     };
 

@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AdministrativeUnitsRouteImport } from './routes/administrative-units'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlacesIdRouteImport } from './routes/places.$id'
@@ -18,6 +20,16 @@ import { Route as EventsIdRouteImport } from './routes/events.$id'
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdministrativeUnitsRoute = AdministrativeUnitsRouteImport.update({
+  id: '/administrative-units',
+  path: '/administrative-units',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -44,6 +56,8 @@ const EventsIdRoute = EventsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
@@ -51,6 +65,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
@@ -59,21 +75,47 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/auth' | '/events/$id' | '/places/$id'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/administrative-units'
+    | '/auth'
+    | '/events/$id'
+    | '/places/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/auth' | '/events/$id' | '/places/$id'
-  id: '__root__' | '/' | '/about' | '/auth' | '/events/$id' | '/places/$id'
+  to:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/administrative-units'
+    | '/auth'
+    | '/events/$id'
+    | '/places/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/administrative-units'
+    | '/auth'
+    | '/events/$id'
+    | '/places/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRoute
+  AdministrativeUnitsRoute: typeof AdministrativeUnitsRoute
   AuthRoute: typeof AuthRoute
   EventsIdRoute: typeof EventsIdRoute
   PlacesIdRoute: typeof PlacesIdRoute
@@ -86,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/administrative-units': {
+      id: '/administrative-units'
+      path: '/administrative-units'
+      fullPath: '/administrative-units'
+      preLoaderRoute: typeof AdministrativeUnitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -122,6 +178,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AdminRoute: AdminRoute,
+  AdministrativeUnitsRoute: AdministrativeUnitsRoute,
   AuthRoute: AuthRoute,
   EventsIdRoute: EventsIdRoute,
   PlacesIdRoute: PlacesIdRoute,
