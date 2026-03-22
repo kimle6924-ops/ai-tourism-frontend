@@ -8,8 +8,7 @@ import { fetchAdminPlacesThunk, createPlaceThunk, updatePlaceThunk, deletePlaceT
 import { fetchAdminEventsThunk, createEventThunk, updateEventThunk, deleteEventThunk, setSelectedEvent } from '../store/slice/AdminEventSlice';
 import { fetchPendingPlacesThunk, fetchPendingEventsThunk, approveResourceThunk, rejectResourceThunk, fetchLogsThunk, clearLogs } from '../store/slice/ModerationSlice';
 import { fetchAdminCategoriesThunk, createCategoryThunk, updateCategoryThunk, deleteCategoryThunk } from '../store/slice/AdminCategorySlice';
-import type { PlaceItem } from '../services/AdminPlaceService';
-import type { CreatePlacePayload } from '../services/AdminPlaceService';
+import type { PlaceItem, CreatePlacePayload } from '../services/AdminPlaceService';
 import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../services/AdminEventService';
 import type { ResourceType } from '../services/ModerationService';
 import CategoryService, { type Category } from '../services/CategoryService';
@@ -20,308 +19,14 @@ import {
 } from 'recharts';
 import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText, Tag, ImageIcon } from 'lucide-react';
 import MediaManager from '../components/MediaManager';
+import { RoleBadge, UserStatusBadge, ModerationBadge, EventStatusBadge } from '../components/shared/StatusBadges';
+import PlaceFormModal from '../components/shared/PlaceFormModal';
+import EventFormModal from '../components/shared/EventFormModal';
+import LogsModal from '../components/shared/LogsModal';
+import Pagination from '../components/shared/Pagination';
+import { formatDateTime, categoryTypeLabel } from '../components/shared/utils';
 
 type AdminTab = 'overview' | 'users' | 'places' | 'events' | 'moderation' | 'categories';
-
-// ─── Shared Badges ───────────────────────────────────
-const RoleBadge = ({ role }: { role: number }) => {
-    switch (role) {
-        case 0: return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Admin</span>;
-        case 1: return <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-800">Manager</span>;
-        case 2: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">User</span>;
-        default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">Unknown</span>;
-    }
-};
-
-const UserStatusBadge = ({ status }: { status: number }) => {
-    if (status === 0) return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Hoạt động</span>;
-    if (status === 1) return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Bị khóa</span>;
-    return <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">Chờ duyệt</span>;
-};
-
-const ModerationBadge = ({ status }: { status: number }) => {
-    switch (status) {
-        case 0: return <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">Chờ duyệt</span>;
-        case 1: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Đã duyệt</span>;
-        case 2: return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Từ chối</span>;
-        default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">—</span>;
-    }
-};
-
-const EventStatusBadge = ({ status }: { status: number }) => {
-    switch (status) {
-        case 0: return <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-800">Sắp diễn ra</span>;
-        case 1: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Đang diễn ra</span>;
-        case 2: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">Đã kết thúc</span>;
-        default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">—</span>;
-    }
-};
-
-// ─── Event Form Modal ────────────────────────────────
-interface EventFormProps {
-    event: EventItem | null;
-    categories: Category[];
-    onClose: () => void;
-    onSubmit: (data: CreateEventPayload | UpdateEventPayload) => void;
-    loading: boolean;
-}
-
-function EventFormModal({ event, categories, onClose, onSubmit, loading }: EventFormProps) {
-    const [title, setTitle] = useState(event?.title || '');
-    const [description, setDescription] = useState(event?.description || '');
-    const [address, setAddress] = useState(event?.address || '');
-    const [administrativeUnitId, setAdministrativeUnitId] = useState(event?.administrativeUnitId || '');
-    const [latitude, setLatitude] = useState<string>(event?.latitude?.toString() || '');
-    const [longitude, setLongitude] = useState<string>(event?.longitude?.toString() || '');
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(event?.categoryIds || []);
-    const [tags, setTags] = useState(event?.tags?.join(', ') || '');
-    const [startAt, setStartAt] = useState(event?.startAt ? event.startAt.slice(0, 16) : '');
-    const [endAt, setEndAt] = useState(event?.endAt ? event.endAt.slice(0, 16) : '');
-    const [eventStatus, setEventStatus] = useState<number>(event?.eventStatus ?? 0);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!title.trim() || !description.trim() || !address.trim() || !startAt || !endAt) {
-            Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning');
-            return;
-        }
-        const base = {
-            title: title.trim(),
-            description: description.trim(),
-            address: address.trim(),
-            administrativeUnitId: administrativeUnitId || '00000000-0000-0000-0000-000000000000',
-            latitude: latitude ? parseFloat(latitude) : null,
-            longitude: longitude ? parseFloat(longitude) : null,
-            categoryIds: selectedCategoryIds,
-            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-            startAt: new Date(startAt).toISOString(),
-            endAt: new Date(endAt).toISOString(),
-        };
-        if (event) {
-            onSubmit({ ...base, eventStatus });
-        } else {
-            onSubmit(base);
-        }
-    };
-
-    const toggleCategory = (id: string) => {
-        setSelectedCategoryIds(prev =>
-            prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-        );
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                <h2 className="mb-6 text-xl font-bold text-gray-800">{event ? 'Sửa sự kiện' : 'Thêm sự kiện mới'}</h2>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Tên sự kiện *</label>
-                        <input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Lễ hội hoa Đà Lạt" />
-                    </div>
-
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Mô tả *</label>
-                        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Mô tả chi tiết về sự kiện..." />
-                    </div>
-
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Địa điểm tổ chức *</label>
-                        <input value={address} onChange={e => setAddress(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Quảng trường Lâm Viên, Đà Lạt" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Bắt đầu *</label>
-                            <input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Kết thúc *</label>
-                            <input type="datetime-local" value={endAt} onChange={e => setEndAt(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                        </div>
-                    </div>
-
-                    {event && (
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Trạng thái sự kiện</label>
-                            <select value={eventStatus} onChange={e => setEventStatus(Number(e.target.value))} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                <option value={0}>Sắp diễn ra</option>
-                                <option value={1}>Đang diễn ra</option>
-                                <option value={2}>Đã kết thúc</option>
-                            </select>
-                        </div>
-                    )}
-
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Mã đơn vị hành chính</label>
-                        <input value={administrativeUnitId} onChange={e => setAdministrativeUnitId(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="UUID đơn vị hành chính" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ</label>
-                            <input value={latitude} onChange={e => setLatitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Kinh độ</label>
-                            <input value={longitude} onChange={e => setLongitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">Danh mục</label>
-                        <div className="flex flex-wrap gap-2 rounded-lg border p-3 max-h-36 overflow-y-auto">
-                            {categories.map(cat => (
-                                <button key={cat.id} type="button" onClick={() => toggleCategory(cat.id)}
-                                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${selectedCategoryIds.includes(cat.id) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                                    {cat.name}
-                                </button>
-                            ))}
-                            {categories.length === 0 && <span className="text-xs text-gray-400">Không có danh mục</span>}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Tags (phân cách bằng dấu phẩy)</label>
-                        <input value={tags} onChange={e => setTags(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: lễ hội, văn hóa, mùa xuân" />
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Hủy</button>
-                        <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition">
-                            {loading ? 'Đang xử lý...' : event ? 'Cập nhật' : 'Tạo mới'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-// ─── Place Form Modal ────────────────────────────────
-interface PlaceFormProps {
-    place: PlaceItem | null; // null = create mode
-    categories: Category[];
-    onClose: () => void;
-    onSubmit: (data: CreatePlacePayload) => void;
-    loading: boolean;
-}
-
-function PlaceFormModal({ place, categories, onClose, onSubmit, loading }: PlaceFormProps) {
-    const [title, setTitle] = useState(place?.title || '');
-    const [description, setDescription] = useState(place?.description || '');
-    const [address, setAddress] = useState(place?.address || '');
-    const [administrativeUnitId, setAdministrativeUnitId] = useState(place?.administrativeUnitId || '');
-    const [latitude, setLatitude] = useState<string>(place?.latitude?.toString() || '');
-    const [longitude, setLongitude] = useState<string>(place?.longitude?.toString() || '');
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(place?.categoryIds || []);
-    const [tags, setTags] = useState(place?.tags?.join(', ') || '');
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!title.trim() || !description.trim() || !address.trim()) {
-            Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning');
-            return;
-        }
-        onSubmit({
-            title: title.trim(),
-            description: description.trim(),
-            address: address.trim(),
-            administrativeUnitId: administrativeUnitId || '00000000-0000-0000-0000-000000000000',
-            latitude: latitude ? parseFloat(latitude) : null,
-            longitude: longitude ? parseFloat(longitude) : null,
-            categoryIds: selectedCategoryIds,
-            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-        });
-    };
-
-    const toggleCategory = (id: string) => {
-        setSelectedCategoryIds(prev =>
-            prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-        );
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                <h2 className="mb-6 text-xl font-bold text-gray-800">{place ? 'Sửa địa điểm' : 'Thêm địa điểm mới'}</h2>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Title */}
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Tên địa điểm *</label>
-                        <input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Bãi biển Mỹ Khê" />
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Mô tả *</label>
-                        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Mô tả chi tiết về địa điểm..." />
-                    </div>
-
-                    {/* Address */}
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Địa chỉ *</label>
-                        <input value={address} onChange={e => setAddress(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: 123 Đường ABC, Quận XYZ" />
-                    </div>
-
-                    {/* Administrative Unit ID */}
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Mã đơn vị hành chính</label>
-                        <input value={administrativeUnitId} onChange={e => setAdministrativeUnitId(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="UUID đơn vị hành chính" />
-                    </div>
-
-                    {/* Lat/Lng */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ (Latitude)</label>
-                            <input value={latitude} onChange={e => setLatitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: 16.0544" />
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Kinh độ (Longitude)</label>
-                            <input value={longitude} onChange={e => setLongitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: 108.2022" />
-                        </div>
-                    </div>
-
-                    {/* Categories */}
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">Danh mục</label>
-                        <div className="flex flex-wrap gap-2 rounded-lg border p-3 max-h-36 overflow-y-auto">
-                            {categories.map(cat => (
-                                <button
-                                    key={cat.id}
-                                    type="button"
-                                    onClick={() => toggleCategory(cat.id)}
-                                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${selectedCategoryIds.includes(cat.id) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                >
-                                    {cat.name}
-                                </button>
-                            ))}
-                            {categories.length === 0 && <span className="text-xs text-gray-400">Không có danh mục</span>}
-                        </div>
-                    </div>
-
-                    {/* Tags */}
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">Tags (phân cách bằng dấu phẩy)</label>
-                        <input value={tags} onChange={e => setTags(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: biển, du lịch, gia đình" />
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Hủy</button>
-                        <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition">
-                            {loading ? 'Đang xử lý...' : place ? 'Cập nhật' : 'Tạo mới'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
 
 // ─── Main Admin Page ─────────────────────────────────
 export function AdminPage() {
@@ -523,10 +228,6 @@ export function AdminPage() {
         }
     };
 
-    const formatDateTime = (iso: string) => {
-        return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    };
-
     // ── Category handlers ──
     const handleCategoryPageChange = (newPage: number) => {
         dispatch(fetchAdminCategoriesThunk({ page: newPage, size: 20 }));
@@ -575,11 +276,6 @@ export function AdminPage() {
                 dispatch(fetchAdminCategoriesThunk({ page: categoriesPageNumber, size: 20 }));
             } else { Swal.fire('Lỗi', res.payload as string, 'error'); }
         }
-    };
-
-    const categoryTypeLabel = (type: string) => {
-        const map: Record<string, string> = { theme: 'Chủ đề', style: 'Phong cách', activity: 'Hoạt động', budget: 'Ngân sách', companion: 'Đối tượng' };
-        return map[type] || type;
     };
 
     // ── Moderation handlers ──
@@ -818,16 +514,7 @@ export function AdminPage() {
                                         </tbody>
                                     </table>
                                 </div>
-
-                                {!usersLoading && userTotalPages > 1 && (
-                                    <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 bg-gray-50 flex-shrink-0">
-                                        <span className="text-sm text-gray-700">Trang <span className="font-semibold">{userPageNumber}</span> / <span className="font-semibold">{userTotalPages}</span></span>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleUserPageChange(userPageNumber - 1)} disabled={userPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
-                                            <button onClick={() => handleUserPageChange(userPageNumber + 1)} disabled={userPageNumber === userTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
-                                        </div>
-                                    </div>
-                                )}
+                                {!usersLoading && <Pagination currentPage={userPageNumber} totalPages={userTotalPages} onPageChange={handleUserPageChange} />}
                             </div>
                         </div>
                     )}
@@ -889,18 +576,10 @@ export function AdminPage() {
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-1">
-                                                            <button onClick={() => handleOpenEditPlace(p)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa">
-                                                                <Pencil size={15} />
-                                                            </button>
-                                                            <button onClick={() => setMediaTarget({ resourceType: 0, resourceId: p.id, title: p.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Quản lý ảnh">
-                                                                <ImageIcon size={15} />
-                                                            </button>
-                                                            <button onClick={() => handleDeletePlace(p.id, p.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa">
-                                                                <Trash2 size={15} />
-                                                            </button>
-                                                            <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết">
-                                                                <ExternalLink size={15} />
-                                                            </a>
+                                                            <button onClick={() => handleOpenEditPlace(p)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa"><Pencil size={15} /></button>
+                                                            <button onClick={() => setMediaTarget({ resourceType: 0, resourceId: p.id, title: p.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Quản lý ảnh"><ImageIcon size={15} /></button>
+                                                            <button onClick={() => handleDeletePlace(p.id, p.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa"><Trash2 size={15} /></button>
+                                                            <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết"><ExternalLink size={15} /></a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -911,16 +590,7 @@ export function AdminPage() {
                                         </tbody>
                                     </table>
                                 </div>
-
-                                {!placesLoading && placesTotalPages > 1 && (
-                                    <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 bg-gray-50 flex-shrink-0">
-                                        <span className="text-sm text-gray-700">Trang <span className="font-semibold">{placesPageNumber}</span> / <span className="font-semibold">{placesTotalPages}</span></span>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handlePlacePageChange(placesPageNumber - 1)} disabled={placesPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
-                                            <button onClick={() => handlePlacePageChange(placesPageNumber + 1)} disabled={placesPageNumber === placesTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
-                                        </div>
-                                    </div>
-                                )}
+                                {!placesLoading && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
                             </div>
                         </div>
                     )}
@@ -987,18 +657,10 @@ export function AdminPage() {
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-1">
-                                                            <button onClick={() => handleOpenEditEvent(ev)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa">
-                                                                <Pencil size={15} />
-                                                            </button>
-                                                            <button onClick={() => setMediaTarget({ resourceType: 1, resourceId: ev.id, title: ev.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Quản lý ảnh">
-                                                                <ImageIcon size={15} />
-                                                            </button>
-                                                            <button onClick={() => handleDeleteEvent(ev.id, ev.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa">
-                                                                <Trash2 size={15} />
-                                                            </button>
-                                                            <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết">
-                                                                <ExternalLink size={15} />
-                                                            </a>
+                                                            <button onClick={() => handleOpenEditEvent(ev)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa"><Pencil size={15} /></button>
+                                                            <button onClick={() => setMediaTarget({ resourceType: 1, resourceId: ev.id, title: ev.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Quản lý ảnh"><ImageIcon size={15} /></button>
+                                                            <button onClick={() => handleDeleteEvent(ev.id, ev.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa"><Trash2 size={15} /></button>
+                                                            <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết"><ExternalLink size={15} /></a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1009,16 +671,7 @@ export function AdminPage() {
                                         </tbody>
                                     </table>
                                 </div>
-
-                                {!eventsLoading && eventsTotalPages > 1 && (
-                                    <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 bg-gray-50 flex-shrink-0">
-                                        <span className="text-sm text-gray-700">Trang <span className="font-semibold">{eventsPageNumber}</span> / <span className="font-semibold">{eventsTotalPages}</span></span>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleEventPageChange(eventsPageNumber - 1)} disabled={eventsPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
-                                            <button onClick={() => handleEventPageChange(eventsPageNumber + 1)} disabled={eventsPageNumber === eventsTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
-                                        </div>
-                                    </div>
-                                )}
+                                {!eventsLoading && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
                             </div>
                         </div>
                     )}
@@ -1029,16 +682,10 @@ export function AdminPage() {
                             <div className="mb-6 flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800 mb-4">Kiểm duyệt nội dung</h1>
                                 <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setModerationSubTab('places')}
-                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'places' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                    >
+                                    <button onClick={() => setModerationSubTab('places')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'places' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                                         Địa điểm chờ duyệt ({placesTotalCount})
                                     </button>
-                                    <button
-                                        onClick={() => setModerationSubTab('events')}
-                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'events' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                    >
+                                    <button onClick={() => setModerationSubTab('events')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'events' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                                         Sự kiện chờ duyệt ({eventsTotalCount})
                                     </button>
                                 </div>
@@ -1079,18 +726,10 @@ export function AdminPage() {
                                                                 <td className="px-4 py-3 text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('vi-VN')}</td>
                                                                 <td className="px-4 py-3 text-right">
                                                                     <div className="flex justify-end gap-1">
-                                                                        <button onClick={() => handleApproveResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt">
-                                                                            <CheckCircle size={14} /> Duyệt
-                                                                        </button>
-                                                                        <button onClick={() => handleRejectResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Từ chối">
-                                                                            <XCircle size={14} /> Từ chối
-                                                                        </button>
-                                                                        <button onClick={() => handleViewLogs(0, p.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử">
-                                                                            <FileText size={15} />
-                                                                        </button>
-                                                                        <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết">
-                                                                            <ExternalLink size={15} />
-                                                                        </a>
+                                                                        <button onClick={() => handleApproveResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt"><CheckCircle size={14} /> Duyệt</button>
+                                                                        <button onClick={() => handleRejectResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Từ chối"><XCircle size={14} /> Từ chối</button>
+                                                                        <button onClick={() => handleViewLogs(0, p.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử"><FileText size={15} /></button>
+                                                                        <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết"><ExternalLink size={15} /></a>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -1138,18 +777,10 @@ export function AdminPage() {
                                                                 <td className="px-4 py-3 text-xs text-gray-500">{new Date(ev.createdAt).toLocaleDateString('vi-VN')}</td>
                                                                 <td className="px-4 py-3 text-right">
                                                                     <div className="flex justify-end gap-1">
-                                                                        <button onClick={() => handleApproveResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt">
-                                                                            <CheckCircle size={14} /> Duyệt
-                                                                        </button>
-                                                                        <button onClick={() => handleRejectResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Từ chối">
-                                                                            <XCircle size={14} /> Từ chối
-                                                                        </button>
-                                                                        <button onClick={() => handleViewLogs(1, ev.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử">
-                                                                            <FileText size={15} />
-                                                                        </button>
-                                                                        <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết">
-                                                                            <ExternalLink size={15} />
-                                                                        </a>
+                                                                        <button onClick={() => handleApproveResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt"><CheckCircle size={14} /> Duyệt</button>
+                                                                        <button onClick={() => handleRejectResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Từ chối"><XCircle size={14} /> Từ chối</button>
+                                                                        <button onClick={() => handleViewLogs(1, ev.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử"><FileText size={15} /></button>
+                                                                        <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết"><ExternalLink size={15} /></a>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -1213,12 +844,8 @@ export function AdminPage() {
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-1">
-                                                            <button onClick={() => handleOpenEditCategory(cat)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa">
-                                                                <Pencil size={15} />
-                                                            </button>
-                                                            <button onClick={() => handleDeleteCategory(cat.id, cat.name)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa">
-                                                                <Trash2 size={15} />
-                                                            </button>
+                                                            <button onClick={() => handleOpenEditCategory(cat)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa"><Pencil size={15} /></button>
+                                                            <button onClick={() => handleDeleteCategory(cat.id, cat.name)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa"><Trash2 size={15} /></button>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1229,16 +856,7 @@ export function AdminPage() {
                                         </tbody>
                                     </table>
                                 </div>
-
-                                {!categoriesLoading && categoriesTotalPages > 1 && (
-                                    <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 bg-gray-50 flex-shrink-0">
-                                        <span className="text-sm text-gray-700">Trang <span className="font-semibold">{categoriesPageNumber}</span> / <span className="font-semibold">{categoriesTotalPages}</span></span>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleCategoryPageChange(categoriesPageNumber - 1)} disabled={categoriesPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
-                                            <button onClick={() => handleCategoryPageChange(categoriesPageNumber + 1)} disabled={categoriesPageNumber === categoriesTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
-                                        </div>
-                                    </div>
-                                )}
+                                {!categoriesLoading && <Pagination currentPage={categoriesPageNumber} totalPages={categoriesTotalPages} onPageChange={handleCategoryPageChange} />}
                             </div>
                         </div>
                     )}
@@ -1253,6 +871,7 @@ export function AdminPage() {
                     onClose={() => setShowPlaceForm(false)}
                     onSubmit={handlePlaceFormSubmit}
                     loading={placeActionLoading}
+                    accentColor="blue"
                 />
             )}
 
@@ -1264,6 +883,7 @@ export function AdminPage() {
                     onClose={() => setShowEventForm(false)}
                     onSubmit={handleEventFormSubmit}
                     loading={eventActionLoading}
+                    accentColor="blue"
                 />
             )}
 
@@ -1316,33 +936,11 @@ export function AdminPage() {
 
             {/* Moderation Logs Modal */}
             {showLogsModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setShowLogsModal(false); dispatch(clearLogs()); }}>
-                    <div className="relative w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => { setShowLogsModal(false); dispatch(clearLogs()); }} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                        <h2 className="mb-4 text-lg font-bold text-gray-800">Lịch sử kiểm duyệt</h2>
-
-                        {logsLoading ? (
-                            <div className="py-8 text-center text-gray-500">Loading...</div>
-                        ) : logs.length === 0 ? (
-                            <div className="py-8 text-center text-gray-500">Chưa có lịch sử kiểm duyệt.</div>
-                        ) : (
-                            <div className="space-y-3">
-                                {logs.map((log) => (
-                                    <div key={log.id} className="rounded-lg border p-3">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${log.action === 'approve' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                {log.action === 'approve' ? 'Duyệt' : 'Từ chối'}
-                                            </span>
-                                            <span className="text-xs text-gray-400">{new Date(log.actedAt).toLocaleString('vi-VN')}</span>
-                                        </div>
-                                        {log.note && <p className="text-sm text-gray-600 mt-1">{log.note}</p>}
-                                        <p className="text-xs text-gray-400 mt-1">Bởi: {log.actedBy}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <LogsModal
+                    logs={logs}
+                    loading={logsLoading}
+                    onClose={() => { setShowLogsModal(false); dispatch(clearLogs()); }}
+                />
             )}
 
             {/* Media Manager Modal */}

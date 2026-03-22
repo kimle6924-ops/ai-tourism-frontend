@@ -11,140 +11,15 @@ import type { ResourceType } from '../services/ModerationService';
 import CategoryService, { type Category } from '../services/CategoryService';
 import MediaManager from '../components/MediaManager';
 import Swal from 'sweetalert2';
-import { MapPin, Calendar, Star, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText, ImageIcon } from 'lucide-react';
+import { MapPin, Calendar, Star, Plus, Pencil, Trash2, ExternalLink, Clock, CheckCircle, XCircle, FileText, ImageIcon } from 'lucide-react';
+import { ModerationBadge, EventStatusBadge } from '../components/shared/StatusBadges';
+import PlaceFormModal from '../components/shared/PlaceFormModal';
+import EventFormModal from '../components/shared/EventFormModal';
+import LogsModal from '../components/shared/LogsModal';
+import Pagination from '../components/shared/Pagination';
+import { formatDateTime } from '../components/shared/utils';
 
 type ContributorTab = 'overview' | 'places' | 'events' | 'moderation';
-
-// ─── Badges ──────────────────────────────────────────
-const ModerationBadge = ({ status }: { status: number }) => {
-    switch (status) {
-        case 0: return <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">Chờ duyệt</span>;
-        case 1: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Đã duyệt</span>;
-        case 2: return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Từ chối</span>;
-        default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">—</span>;
-    }
-};
-
-const EventStatusBadge = ({ status }: { status: number }) => {
-    switch (status) {
-        case 0: return <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-800">Sắp diễn ra</span>;
-        case 1: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Đang diễn ra</span>;
-        case 2: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">Đã kết thúc</span>;
-        default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">—</span>;
-    }
-};
-
-// ─── Place Form Modal ────────────────────────────────
-function PlaceFormModal({ place, categories, onClose, onSubmit, loading }: { place: PlaceItem | null; categories: Category[]; onClose: () => void; onSubmit: (data: CreatePlacePayload) => void; loading: boolean }) {
-    const [title, setTitle] = useState(place?.title || '');
-    const [description, setDescription] = useState(place?.description || '');
-    const [address, setAddress] = useState(place?.address || '');
-    const [administrativeUnitId, setAdministrativeUnitId] = useState(place?.administrativeUnitId || '');
-    const [latitude, setLatitude] = useState<string>(place?.latitude?.toString() || '');
-    const [longitude, setLongitude] = useState<string>(place?.longitude?.toString() || '');
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(place?.categoryIds || []);
-    const [tags, setTags] = useState(place?.tags?.join(', ') || '');
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!title.trim() || !description.trim() || !address.trim()) { Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning'); return; }
-        onSubmit({ title: title.trim(), description: description.trim(), address: address.trim(), administrativeUnitId: administrativeUnitId || '00000000-0000-0000-0000-000000000000', latitude: latitude ? parseFloat(latitude) : null, longitude: longitude ? parseFloat(longitude) : null, categoryIds: selectedCategoryIds, tags: tags.split(',').map(t => t.trim()).filter(Boolean) });
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                <h2 className="mb-6 text-xl font-bold text-gray-800">{place ? 'Sửa địa điểm' : 'Thêm địa điểm mới'}</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Tên địa điểm *</label><input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Mô tả *</label><textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Địa chỉ *</label><input value={address} onChange={e => setAddress(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Mã đơn vị hành chính</label><input value={administrativeUnitId} onChange={e => setAdministrativeUnitId(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ</label><input value={latitude} onChange={e => setLatitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                        <div><label className="mb-1 block text-sm font-medium text-gray-700">Kinh độ</label><input value={longitude} onChange={e => setLongitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    </div>
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">Danh mục</label>
-                        <div className="flex flex-wrap gap-2 rounded-lg border p-3 max-h-36 overflow-y-auto">
-                            {categories.map(cat => (<button key={cat.id} type="button" onClick={() => setSelectedCategoryIds(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])} className={`rounded-full px-3 py-1 text-xs font-medium transition ${selectedCategoryIds.includes(cat.id) ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{cat.name}</button>))}
-                            {categories.length === 0 && <span className="text-xs text-gray-400">Không có danh mục</span>}
-                        </div>
-                    </div>
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Tags (phân cách bằng dấu phẩy)</label><input value={tags} onChange={e => setTags(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Hủy</button>
-                        <button type="submit" disabled={loading} className="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition">{loading ? 'Đang xử lý...' : place ? 'Cập nhật' : 'Tạo mới'}</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-// ─── Event Form Modal ────────────────────────────────
-function EventFormModal({ event, categories, onClose, onSubmit, loading }: { event: EventItem | null; categories: Category[]; onClose: () => void; onSubmit: (data: CreateEventPayload | UpdateEventPayload) => void; loading: boolean }) {
-    const [title, setTitle] = useState(event?.title || '');
-    const [description, setDescription] = useState(event?.description || '');
-    const [address, setAddress] = useState(event?.address || '');
-    const [administrativeUnitId, setAdministrativeUnitId] = useState(event?.administrativeUnitId || '');
-    const [latitude, setLatitude] = useState<string>(event?.latitude?.toString() || '');
-    const [longitude, setLongitude] = useState<string>(event?.longitude?.toString() || '');
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(event?.categoryIds || []);
-    const [tags, setTags] = useState(event?.tags?.join(', ') || '');
-    const [startAt, setStartAt] = useState(event?.startAt ? event.startAt.slice(0, 16) : '');
-    const [endAt, setEndAt] = useState(event?.endAt ? event.endAt.slice(0, 16) : '');
-    const [eventStatus, setEventStatus] = useState<number>(event?.eventStatus ?? 0);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!title.trim() || !description.trim() || !address.trim() || !startAt || !endAt) { Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning'); return; }
-        const base = { title: title.trim(), description: description.trim(), address: address.trim(), administrativeUnitId: administrativeUnitId || '00000000-0000-0000-0000-000000000000', latitude: latitude ? parseFloat(latitude) : null, longitude: longitude ? parseFloat(longitude) : null, categoryIds: selectedCategoryIds, tags: tags.split(',').map(t => t.trim()).filter(Boolean), startAt: new Date(startAt).toISOString(), endAt: new Date(endAt).toISOString() };
-        event ? onSubmit({ ...base, eventStatus }) : onSubmit(base);
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                <h2 className="mb-6 text-xl font-bold text-gray-800">{event ? 'Sửa sự kiện' : 'Thêm sự kiện mới'}</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Tên sự kiện *</label><input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Mô tả *</label><textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Địa điểm tổ chức *</label><input value={address} onChange={e => setAddress(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="mb-1 block text-sm font-medium text-gray-700">Bắt đầu *</label><input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                        <div><label className="mb-1 block text-sm font-medium text-gray-700">Kết thúc *</label><input type="datetime-local" value={endAt} onChange={e => setEndAt(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    </div>
-                    {event && (
-                        <div><label className="mb-1 block text-sm font-medium text-gray-700">Trạng thái sự kiện</label>
-                            <select value={eventStatus} onChange={e => setEventStatus(Number(e.target.value))} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                                <option value={0}>Sắp diễn ra</option><option value={1}>Đang diễn ra</option><option value={2}>Đã kết thúc</option>
-                            </select>
-                        </div>
-                    )}
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Mã đơn vị hành chính</label><input value={administrativeUnitId} onChange={e => setAdministrativeUnitId(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ</label><input value={latitude} onChange={e => setLatitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                        <div><label className="mb-1 block text-sm font-medium text-gray-700">Kinh độ</label><input value={longitude} onChange={e => setLongitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    </div>
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">Danh mục</label>
-                        <div className="flex flex-wrap gap-2 rounded-lg border p-3 max-h-36 overflow-y-auto">
-                            {categories.map(cat => (<button key={cat.id} type="button" onClick={() => setSelectedCategoryIds(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])} className={`rounded-full px-3 py-1 text-xs font-medium transition ${selectedCategoryIds.includes(cat.id) ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{cat.name}</button>))}
-                        </div>
-                    </div>
-                    <div><label className="mb-1 block text-sm font-medium text-gray-700">Tags</label><input value={tags} onChange={e => setTags(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Hủy</button>
-                        <button type="submit" disabled={loading} className="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition">{loading ? 'Đang xử lý...' : event ? 'Cập nhật' : 'Tạo mới'}</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
 
 // ─── Main Contributor Page ───────────────────────────
 export function ContributorPage() {
@@ -224,7 +99,6 @@ export function ContributorPage() {
         const c = await Swal.fire({ title: 'Xóa?', text: `Xóa "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa', cancelButtonText: 'Hủy' });
         if (c.isConfirmed) { const res = await dispatch(deleteEventThunk(id)); if (deleteEventThunk.fulfilled.match(res)) { Swal.fire('Đã xóa', '', 'success'); dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 })); } else Swal.fire('Lỗi', res.payload as string, 'error'); }
     };
-    const formatDateTime = (iso: string) => new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
     // ── Moderation handlers ──
     const handleApproveResource = async (resourceType: ResourceType, id: string, title: string) => {
@@ -338,15 +212,7 @@ export function ContributorPage() {
                                         </tbody>
                                     </table>
                                 </div>
-                                {!placesLoading && placesTotalPages > 1 && (
-                                    <div className="flex items-center justify-between border-t px-4 py-3 bg-gray-50 flex-shrink-0">
-                                        <span className="text-sm text-gray-700">Trang <b>{placesPageNumber}</b> / <b>{placesTotalPages}</b></span>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handlePlacePageChange(placesPageNumber - 1)} disabled={placesPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
-                                            <button onClick={() => handlePlacePageChange(placesPageNumber + 1)} disabled={placesPageNumber === placesTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
-                                        </div>
-                                    </div>
-                                )}
+                                {!placesLoading && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
                             </div>
                         </div>
                     )}
@@ -389,15 +255,7 @@ export function ContributorPage() {
                                         </tbody>
                                     </table>
                                 </div>
-                                {!eventsLoading && eventsTotalPages > 1 && (
-                                    <div className="flex items-center justify-between border-t px-4 py-3 bg-gray-50 flex-shrink-0">
-                                        <span className="text-sm text-gray-700">Trang <b>{eventsPageNumber}</b> / <b>{eventsTotalPages}</b></span>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleEventPageChange(eventsPageNumber - 1)} disabled={eventsPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
-                                            <button onClick={() => handleEventPageChange(eventsPageNumber + 1)} disabled={eventsPageNumber === eventsTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
-                                        </div>
-                                    </div>
-                                )}
+                                {!eventsLoading && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
                             </div>
                         </div>
                     )}
@@ -468,33 +326,10 @@ export function ContributorPage() {
             </div>
 
             {/* Modals */}
-            {showPlaceForm && <PlaceFormModal place={selectedPlace} categories={categories} onClose={() => setShowPlaceForm(false)} onSubmit={handlePlaceFormSubmit} loading={placeActionLoading} />}
-            {showEventForm && <EventFormModal event={selectedEvent} categories={categories} onClose={() => setShowEventForm(false)} onSubmit={handleEventFormSubmit} loading={eventActionLoading} />}
+            {showPlaceForm && <PlaceFormModal place={selectedPlace} categories={categories} onClose={() => setShowPlaceForm(false)} onSubmit={handlePlaceFormSubmit} loading={placeActionLoading} accentColor="emerald" />}
+            {showEventForm && <EventFormModal event={selectedEvent} categories={categories} onClose={() => setShowEventForm(false)} onSubmit={handleEventFormSubmit} loading={eventActionLoading} accentColor="emerald" />}
             {mediaTarget && <MediaManager resourceType={mediaTarget.resourceType} resourceId={mediaTarget.resourceId} resourceTitle={mediaTarget.title} onClose={() => setMediaTarget(null)} />}
-
-            {/* Logs Modal */}
-            {showLogsModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setShowLogsModal(false); dispatch(clearLogs()); }}>
-                    <div className="relative w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => { setShowLogsModal(false); dispatch(clearLogs()); }} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                        <h2 className="mb-4 text-lg font-bold text-gray-800">Lịch sử kiểm duyệt</h2>
-                        {logsLoading ? <div className="py-8 text-center text-gray-500">Loading...</div> : logs.length === 0 ? <div className="py-8 text-center text-gray-500">Chưa có lịch sử.</div> : (
-                            <div className="space-y-3">
-                                {logs.map(log => (
-                                    <div key={log.id} className="rounded-lg border p-3">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${log.action === 'approve' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{log.action === 'approve' ? 'Duyệt' : 'Từ chối'}</span>
-                                            <span className="text-xs text-gray-400">{new Date(log.actedAt).toLocaleString('vi-VN')}</span>
-                                        </div>
-                                        {log.note && <p className="text-sm text-gray-600 mt-1">{log.note}</p>}
-                                        <p className="text-xs text-gray-400 mt-1">Bởi: {log.actedBy}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            {showLogsModal && <LogsModal logs={logs} loading={logsLoading} onClose={() => { setShowLogsModal(false); dispatch(clearLogs()); }} />}
         </div>
     );
 }

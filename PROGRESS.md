@@ -107,4 +107,18 @@
 - Nút đăng xuất
 
 ---
-## Phase 7: Tách components dùng chung — PENDING
+## Phase 7: Tách components dùng chung — DONE
+
+**Files tạo mới:**
+- `src/components/shared/StatusBadges.tsx` — 4 badge: RoleBadge, UserStatusBadge, ModerationBadge, EventStatusBadge
+- `src/components/shared/PlaceFormModal.tsx` — Form modal thêm/sửa địa điểm, prop `accentColor` (blue/emerald)
+- `src/components/shared/EventFormModal.tsx` — Form modal thêm/sửa sự kiện, prop `accentColor` (blue/emerald)
+- `src/components/shared/LogsModal.tsx` — Modal xem lịch sử kiểm duyệt
+- `src/components/shared/Pagination.tsx` — Component phân trang dùng chung
+- `src/components/shared/utils.ts` — Helper: formatDateTime, categoryTypeLabel
+
+**Files cập nhật:**
+- `src/page/AdminPage.tsx` — Xóa các component inline (badges, form modals, pagination, logs modal), import từ shared
+- `src/page/ContributorPage.tsx` — Xóa các component inline, import từ shared
+
+**Kết quả:** Giảm đáng kể duplicate code giữa AdminPage và ContributorPage. Các component dùng chung dễ bảo trì, thay đổi 1 chỗ áp dụng cho cả 2 trang.
