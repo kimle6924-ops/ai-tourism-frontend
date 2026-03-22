@@ -37,7 +37,25 @@
   - Click card "Sự kiện" ở Tổng quan → điều hướng sang tab events
 
 ---
-## Phase 3: Kiểm duyệt (Admin) — PENDING
+## Phase 3: Kiểm duyệt (Admin) — DONE
+
+**Files tạo mới:**
+- `src/services/ModerationService.ts` — Service gọi API moderation (approve, reject, getLogs)
+- `src/store/slice/ModerationSlice.ts` — Redux slice với 5 thunks (fetchPendingPlaces, fetchPendingEvents, approve, reject, fetchLogs)
+
+**Files cập nhật:**
+- `src/store/index.ts` — Đăng ký `moderation` reducer
+- `src/page/AdminPage.tsx` — Thêm tab "Kiểm duyệt":
+  - Sub-tabs: Địa điểm chờ duyệt (count) / Sự kiện chờ duyệt (count)
+  - Bảng pending items: Ảnh, Tên, Địa chỉ, Thời gian (events), Ngày tạo, Thao tác
+  - Nút [Duyệt] với input ghi chú (không bắt buộc)
+  - Nút [Từ chối] với input lý do (bắt buộc)
+  - Nút [Lịch sử] mở modal xem logs kiểm duyệt
+  - Link xem chi tiết mở tab mới
+  - Sau duyệt/từ chối → tự động xóa khỏi danh sách pending
+  - Logs modal: hiển thị timeline hành động duyệt/từ chối với ghi chú, thời gian, người thực hiện
+
+---
 ## Phase 4: Quản lý Danh mục (Admin) — PENDING
 ## Phase 5: Quản lý Hình ảnh (dùng chung) — PENDING
 ## Phase 6: Trang Contributor — PENDING

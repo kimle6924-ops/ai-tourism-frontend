@@ -6,18 +6,20 @@ import { fetchAdminUsersThunk, lockUserThunk, unlockUserThunk, approveUserThunk 
 import { fetchOverviewStatsThunk } from '../store/slice/AdminManagerOverviewSlice';
 import { fetchAdminPlacesThunk, createPlaceThunk, updatePlaceThunk, deletePlaceThunk, setSelectedPlace } from '../store/slice/AdminPlaceSlice';
 import { fetchAdminEventsThunk, createEventThunk, updateEventThunk, deleteEventThunk, setSelectedEvent } from '../store/slice/AdminEventSlice';
+import { fetchPendingPlacesThunk, fetchPendingEventsThunk, approveResourceThunk, rejectResourceThunk, fetchLogsThunk, clearLogs } from '../store/slice/ModerationSlice';
 import type { PlaceItem } from '../services/AdminPlaceService';
 import type { CreatePlacePayload } from '../services/AdminPlaceService';
 import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../services/AdminEventService';
+import type { ResourceType } from '../services/ModerationService';
 import CategoryService, { type Category } from '../services/CategoryService';
 import Swal from 'sweetalert2';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend
 } from 'recharts';
-import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock } from 'lucide-react';
+import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
 
-type AdminTab = 'overview' | 'users' | 'places' | 'events';
+type AdminTab = 'overview' | 'users' | 'places' | 'events' | 'moderation';
 
 // ─── Shared Badges ───────────────────────────────────
 const RoleBadge = ({ role }: { role: number }) => {
@@ -336,12 +338,17 @@ export function AdminPage() {
     // Events State
     const { events, loading: eventsLoading, totalPages: eventsTotalPages, pageNumber: eventsPageNumber, actionLoading: eventActionLoading, selectedEvent } = useSelector((state: RootState) => state.adminEvents);
 
+    // Moderation State
+    const { pendingPlaces, pendingEvents, placesTotalCount, eventsTotalCount, logs, logsLoading, loading: moderationLoading, actionLoading: moderationActionLoading } = useSelector((state: RootState) => state.moderation);
+
     // Local state
     const [showPlaceForm, setShowPlaceForm] = useState(false);
     const [showEventForm, setShowEventForm] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
+    const [showLogsModal, setShowLogsModal] = useState(false);
 
-    const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading;
+    const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading || moderationActionLoading;
 
     // Load data on tab change
     useEffect(() => {
@@ -361,6 +368,9 @@ export function AdminPage() {
                     if (res.success) setCategories(res.data.items);
                 });
             }
+        } else if (activeTab === 'moderation') {
+            dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
+            dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
         }
     }, [activeTab, dispatch]);
 
@@ -501,6 +511,36 @@ export function AdminPage() {
         return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
+    // ── Moderation handlers ──
+    const handleApproveResource = async (resourceType: ResourceType, id: string, title: string) => {
+        const confirm = await Swal.fire({ title: 'Duyệt nội dung?', text: `Duyệt "${title}"?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', cancelButtonColor: '#6c757d', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Ghi chú (không bắt buộc)', inputPlaceholder: 'VD: Đạt yêu cầu' });
+        if (confirm.isConfirmed) {
+            const res = await dispatch(approveResourceThunk({ resourceType, id, payload: { note: confirm.value || '' } }));
+            if (approveResourceThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã duyệt', 'success');
+            } else {
+                Swal.fire('Lỗi', res.payload as string, 'error');
+            }
+        }
+    };
+
+    const handleRejectResource = async (resourceType: ResourceType, id: string, title: string) => {
+        const confirm = await Swal.fire({ title: 'Từ chối nội dung?', text: `Từ chối "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#6c757d', confirmButtonText: 'Từ chối', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Lý do từ chối', inputPlaceholder: 'VD: Thông tin không chính xác', inputValidator: (value) => { if (!value) return 'Vui lòng nhập lý do từ chối'; return null; } });
+        if (confirm.isConfirmed) {
+            const res = await dispatch(rejectResourceThunk({ resourceType, id, payload: { note: confirm.value || '' } }));
+            if (rejectResourceThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã từ chối', 'success');
+            } else {
+                Swal.fire('Lỗi', res.payload as string, 'error');
+            }
+        }
+    };
+
+    const handleViewLogs = (resourceType: ResourceType, id: string) => {
+        dispatch(fetchLogsThunk({ resourceType, id }));
+        setShowLogsModal(true);
+    };
+
     // ── Chart data ──
     const formatChartData = () => {
         if (!stats) return [];
@@ -520,6 +560,7 @@ export function AdminPage() {
         { key: 'users', label: 'Quản lý Người dùng' },
         { key: 'places', label: 'Quản lý Địa điểm' },
         { key: 'events', label: 'Quản lý Sự kiện' },
+        { key: 'moderation', label: 'Kiểm duyệt' },
     ];
 
     // Helper: get category names for a place
@@ -903,6 +944,150 @@ export function AdminPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* ════════════ MODERATION TAB ════════════ */}
+                    {activeTab === 'moderation' && (
+                        <div className="flex flex-col h-full">
+                            <div className="mb-6 flex-shrink-0">
+                                <h1 className="text-2xl font-bold text-gray-800 mb-4">Kiểm duyệt nội dung</h1>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setModerationSubTab('places')}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'places' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                    >
+                                        Địa điểm chờ duyệt ({placesTotalCount})
+                                    </button>
+                                    <button
+                                        onClick={() => setModerationSubTab('events')}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'events' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                    >
+                                        Sự kiện chờ duyệt ({eventsTotalCount})
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
+                                {moderationLoading ? (
+                                    <div className="flex-1 flex items-center justify-center text-gray-500">Loading...</div>
+                                ) : (
+                                    <>
+                                        {/* Pending Places */}
+                                        {moderationSubTab === 'places' && (
+                                            <div className="overflow-x-auto flex-1">
+                                                <table className="w-full text-left text-sm text-gray-600 min-w-[800px]">
+                                                    <thead className="bg-gray-50 text-xs uppercase text-gray-700 border-b sticky top-0 z-10">
+                                                        <tr>
+                                                            <th className="px-4 py-3 font-semibold">Ảnh</th>
+                                                            <th className="px-4 py-3 font-semibold">Tên địa điểm</th>
+                                                            <th className="px-4 py-3 font-semibold">Địa chỉ</th>
+                                                            <th className="px-4 py-3 font-semibold">Ngày tạo</th>
+                                                            <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y text-gray-800">
+                                                        {pendingPlaces.map((p) => (
+                                                            <tr key={p.id} className="hover:bg-gray-50 transition">
+                                                                <td className="px-4 py-3">
+                                                                    <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">
+                                                                        {p.images?.[0]?.url ? (
+                                                                            <img src={p.images[0].url} alt={p.title} className="h-full w-full object-cover" />
+                                                                        ) : (
+                                                                            <div className="h-full w-full flex items-center justify-center text-gray-400"><MapPin size={16} /></div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3 font-semibold text-gray-900 max-w-[200px] truncate">{p.title}</td>
+                                                                <td className="px-4 py-3 text-gray-500 max-w-[180px] truncate">{p.address || '—'}</td>
+                                                                <td className="px-4 py-3 text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('vi-VN')}</td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <div className="flex justify-end gap-1">
+                                                                        <button onClick={() => handleApproveResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt">
+                                                                            <CheckCircle size={14} /> Duyệt
+                                                                        </button>
+                                                                        <button onClick={() => handleRejectResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Từ chối">
+                                                                            <XCircle size={14} /> Từ chối
+                                                                        </button>
+                                                                        <button onClick={() => handleViewLogs(0, p.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử">
+                                                                            <FileText size={15} />
+                                                                        </button>
+                                                                        <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết">
+                                                                            <ExternalLink size={15} />
+                                                                        </a>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {pendingPlaces.length === 0 && (
+                                                            <tr><td colSpan={5} className="py-10 text-center text-gray-500">Không có địa điểm nào chờ duyệt.</td></tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+
+                                        {/* Pending Events */}
+                                        {moderationSubTab === 'events' && (
+                                            <div className="overflow-x-auto flex-1">
+                                                <table className="w-full text-left text-sm text-gray-600 min-w-[900px]">
+                                                    <thead className="bg-gray-50 text-xs uppercase text-gray-700 border-b sticky top-0 z-10">
+                                                        <tr>
+                                                            <th className="px-4 py-3 font-semibold">Ảnh</th>
+                                                            <th className="px-4 py-3 font-semibold">Tên sự kiện</th>
+                                                            <th className="px-4 py-3 font-semibold">Địa điểm</th>
+                                                            <th className="px-4 py-3 font-semibold">Thời gian</th>
+                                                            <th className="px-4 py-3 font-semibold">Ngày tạo</th>
+                                                            <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y text-gray-800">
+                                                        {pendingEvents.map((ev) => (
+                                                            <tr key={ev.id} className="hover:bg-gray-50 transition">
+                                                                <td className="px-4 py-3">
+                                                                    <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">
+                                                                        {ev.images?.[0]?.url ? (
+                                                                            <img src={ev.images[0].url} alt={ev.title} className="h-full w-full object-cover" />
+                                                                        ) : (
+                                                                            <div className="h-full w-full flex items-center justify-center text-gray-400"><Calendar size={16} /></div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3 font-semibold text-gray-900 max-w-[180px] truncate">{ev.title}</td>
+                                                                <td className="px-4 py-3 text-gray-500 max-w-[150px] truncate">{ev.address || '—'}</td>
+                                                                <td className="px-4 py-3 text-xs text-gray-600">
+                                                                    <div className="flex items-center gap-1"><Clock size={12} /> {formatDateTime(ev.startAt)}</div>
+                                                                    <div className="text-gray-400 mt-0.5">→ {formatDateTime(ev.endAt)}</div>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-xs text-gray-500">{new Date(ev.createdAt).toLocaleDateString('vi-VN')}</td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <div className="flex justify-end gap-1">
+                                                                        <button onClick={() => handleApproveResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt">
+                                                                            <CheckCircle size={14} /> Duyệt
+                                                                        </button>
+                                                                        <button onClick={() => handleRejectResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Từ chối">
+                                                                            <XCircle size={14} /> Từ chối
+                                                                        </button>
+                                                                        <button onClick={() => handleViewLogs(1, ev.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử">
+                                                                            <FileText size={15} />
+                                                                        </button>
+                                                                        <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết">
+                                                                            <ExternalLink size={15} />
+                                                                        </a>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {pendingEvents.length === 0 && (
+                                                            <tr><td colSpan={6} className="py-10 text-center text-gray-500">Không có sự kiện nào chờ duyệt.</td></tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </main>
             </div>
 
@@ -926,6 +1111,37 @@ export function AdminPage() {
                     onSubmit={handleEventFormSubmit}
                     loading={eventActionLoading}
                 />
+            )}
+
+            {/* Moderation Logs Modal */}
+            {showLogsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setShowLogsModal(false); dispatch(clearLogs()); }}>
+                    <div className="relative w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => { setShowLogsModal(false); dispatch(clearLogs()); }} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                        <h2 className="mb-4 text-lg font-bold text-gray-800">Lịch sử kiểm duyệt</h2>
+
+                        {logsLoading ? (
+                            <div className="py-8 text-center text-gray-500">Loading...</div>
+                        ) : logs.length === 0 ? (
+                            <div className="py-8 text-center text-gray-500">Chưa có lịch sử kiểm duyệt.</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {logs.map((log) => (
+                                    <div key={log.id} className="rounded-lg border p-3">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${log.action === 'approve' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {log.action === 'approve' ? 'Duyệt' : 'Từ chối'}
+                                            </span>
+                                            <span className="text-xs text-gray-400">{new Date(log.actedAt).toLocaleString('vi-VN')}</span>
+                                        </div>
+                                        {log.note && <p className="text-sm text-gray-600 mt-1">{log.note}</p>}
+                                        <p className="text-xs text-gray-400 mt-1">Bởi: {log.actedBy}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );
