@@ -5,18 +5,24 @@ import type { AppDispatch, RootState } from '../store';
 import { loginThunk } from '../store/slice/LoginSlice';
 import { registerThunk } from '../store/slice/RegisterSlice';
 import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
+import AdministrativeUnitService, { type AdministrativeUnit } from '../services/AdministrativeUnitService';
 import bannerImg from '../assets/images/banner.jpg';
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
-type AuthStep = 'login' | 'register' | 'interests';
+type AuthStep = 'login' | 'register' | 'role-select' | 'interests';
 
 interface RegisterData {
     email: string;
     password: string;
     fullName: string;
     phone: string;
+}
+
+interface RoleData {
+    role: number; // 1 = Contributor, 2 = User
+    administrativeUnitId?: string;
 }
 
 // Emoji map for category types displayed in interests
@@ -53,7 +59,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
             if (role === 0) {
                 navigate({ to: '/admin' });
             } else if (role === 1) {
-                navigate({ to: '/administrative-units' });
+                navigate({ to: '/contributor' });
             } else {
                 navigate({ to: '/' });
             }
@@ -227,9 +233,197 @@ function RegisterForm({
 }
 
 // ─────────────────────────────────────────────
+// Role Select — chọn vai trò + khu vực (nếu Contributor)
+// ─────────────────────────────────────────────
+function RoleSelectStep({
+    onBack,
+    onSuccess,
+}: {
+    onBack: () => void;
+    onSuccess: (data: RoleData) => void;
+}) {
+    const [role, setRole] = useState<number | null>(null);
+    const [adminLevel, setAdminLevel] = useState<'province' | 'ward'>('province');
+    const [provinces, setProvinces] = useState<AdministrativeUnit[]>([]);
+    const [wards, setWards] = useState<AdministrativeUnit[]>([]);
+    const [selectedProvince, setSelectedProvince] = useState('');
+    const [selectedWard, setSelectedWard] = useState('');
+    const [loadingUnits, setLoadingUnits] = useState(false);
+    const [error, setError] = useState('');
+
+    // Load provinces when contributor is selected
+    useEffect(() => {
+        if (role === 1 && provinces.length === 0) {
+            setLoadingUnits(true);
+            AdministrativeUnitService.getByLevel(0)
+                .then(res => {
+                    if (res.success) setProvinces(res.data);
+                })
+                .finally(() => setLoadingUnits(false));
+        }
+    }, [role]);
+
+    // Load wards when province is selected and admin level is ward
+    useEffect(() => {
+        if (adminLevel === 'ward' && selectedProvince) {
+            setLoadingUnits(true);
+            setWards([]);
+            setSelectedWard('');
+            AdministrativeUnitService.getChildren(selectedProvince)
+                .then(res => {
+                    if (res.success) setWards(res.data);
+                })
+                .finally(() => setLoadingUnits(false));
+        }
+    }, [adminLevel, selectedProvince]);
+
+    const handleContinue = () => {
+        if (role === null) {
+            setError('Vui lòng chọn vai trò');
+            return;
+        }
+        if (role === 2) {
+            onSuccess({ role: 2 });
+            return;
+        }
+        // Contributor
+        if (adminLevel === 'province') {
+            if (!selectedProvince) {
+                setError('Vui lòng chọn tỉnh/thành phố');
+                return;
+            }
+            onSuccess({ role: 1, administrativeUnitId: selectedProvince });
+        } else {
+            if (!selectedWard) {
+                setError('Vui lòng chọn xã/phường');
+                return;
+            }
+            onSuccess({ role: 1, administrativeUnitId: selectedWard });
+        }
+    };
+
+    return (
+        <div className="w-full max-w-lg rounded-2xl bg-white/95 backdrop-blur-md px-10 py-10 shadow-2xl">
+            <h2 className="mb-2 text-center font-bold text-[#00008A] text-2xl">Bạn là ai?</h2>
+            <p className="mb-6 text-center text-sm text-gray-500">Chọn vai trò phù hợp với bạn</p>
+
+            {/* Role cards */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                <button
+                    type="button"
+                    onClick={() => { setRole(2); setError(''); }}
+                    className={`rounded-xl border-2 p-5 text-left transition hover:shadow-md ${role === 2 ? 'border-[#00008A] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
+                >
+                    <div className="text-3xl mb-2">🧳</div>
+                    <div className="font-bold text-gray-800">Người dùng</div>
+                    <div className="text-xs text-gray-500 mt-1">Khám phá địa điểm, sự kiện du lịch</div>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => { setRole(1); setError(''); }}
+                    className={`rounded-xl border-2 p-5 text-left transition hover:shadow-md ${role === 1 ? 'border-emerald-500 bg-emerald-50 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
+                >
+                    <div className="text-3xl mb-2">📋</div>
+                    <div className="font-bold text-gray-800">Người cung cấp</div>
+                    <div className="text-xs text-gray-500 mt-1">Quản lý địa điểm, sự kiện khu vực</div>
+                </button>
+            </div>
+
+            {/* Administrative unit selection for Contributor */}
+            {role === 1 && (
+                <div className="space-y-4 mb-6 rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
+                    <div>
+                        <label className="mb-2 block text-sm font-semibold text-gray-700">Cấp quản lý</label>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => { setAdminLevel('province'); setSelectedWard(''); }}
+                                className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition ${adminLevel === 'province' ? 'bg-emerald-600 text-white shadow' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+                            >
+                                Cấp Tỉnh/Thành phố
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setAdminLevel('ward')}
+                                className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition ${adminLevel === 'ward' ? 'bg-emerald-600 text-white shadow' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+                            >
+                                Cấp Xã/Phường
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                            {adminLevel === 'province' ? 'Chọn Tỉnh/Thành phố' : 'Chọn Tỉnh/Thành phố (để lọc xã)'}
+                        </label>
+                        <select
+                            value={selectedProvince}
+                            onChange={e => { setSelectedProvince(e.target.value); setSelectedWard(''); }}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                        >
+                            <option value="">— Chọn tỉnh/thành phố —</option>
+                            {provinces.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {adminLevel === 'ward' && selectedProvince && (
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Chọn Xã/Phường</label>
+                            {loadingUnits ? (
+                                <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                                    Đang tải...
+                                </div>
+                            ) : wards.length === 0 ? (
+                                <p className="text-sm text-gray-400 py-2">Không có xã/phường nào</p>
+                            ) : (
+                                <select
+                                    value={selectedWard}
+                                    onChange={e => setSelectedWard(e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                >
+                                    <option value="">— Chọn xã/phường —</option>
+                                    {wards.map(w => (
+                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {error && (
+                <p className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-center text-sm text-red-500">{error}</p>
+            )}
+
+            <div className="flex gap-3">
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="flex-1 rounded-xl border border-gray-300 py-3 font-medium text-gray-600 transition hover:bg-gray-50"
+                >
+                    Quay lại
+                </button>
+                <button
+                    type="button"
+                    onClick={handleContinue}
+                    disabled={loadingUnits}
+                    className="flex-1 rounded-xl bg-[#00008A] py-3 font-bold text-white transition hover:bg-[#0000aa] disabled:opacity-60"
+                >
+                    Tiếp theo
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────
 // Interests — fetch categories từ API, gọi register rồi tự đăng nhập
 // ─────────────────────────────────────────────
-function InterestsStep({ registerData }: { registerData: RegisterData }) {
+function InterestsStep({ registerData, roleData }: { registerData: RegisterData; roleData: RoleData }) {
     const navigate = useNavigate();
     const dispatch = useDispatch<AppDispatch>();
 
@@ -259,11 +453,12 @@ function InterestsStep({ registerData }: { registerData: RegisterData }) {
     const handleConfirm = async () => {
         const categoryIds = selected.size > 0 ? Array.from(selected) : [];
 
-        // 1. Gọi API đăng ký với các category đã chọn
+        // 1. Gọi API đăng ký
         const regResult = await dispatch(
             registerThunk({
                 ...registerData,
-                role: 2,
+                role: roleData.role,
+                administrativeUnitId: roleData.administrativeUnitId,
                 categoryIds,
             }),
         );
@@ -278,7 +473,7 @@ function InterestsStep({ registerData }: { registerData: RegisterData }) {
             if (role === 0) {
                 navigate({ to: '/admin' });
             } else if (role === 1) {
-                navigate({ to: '/administrative-units' });
+                navigate({ to: '/contributor' });
             } else {
                 navigate({ to: '/' });
             }
@@ -349,6 +544,7 @@ function InterestsStep({ registerData }: { registerData: RegisterData }) {
 export function AuthPage() {
     const [step, setStep] = useState<AuthStep>('login');
     const [pendingRegData, setPendingRegData] = useState<RegisterData | null>(null);
+    const [pendingRoleData, setPendingRoleData] = useState<RoleData | null>(null);
 
     return (
         <div
@@ -367,12 +563,21 @@ export function AuthPage() {
                     onSwitch={() => setStep('login')}
                     onSuccess={(data) => {
                         setPendingRegData(data);
+                        setStep('role-select');
+                    }}
+                />
+            )}
+            {step === 'role-select' && pendingRegData && (
+                <RoleSelectStep
+                    onBack={() => setStep('register')}
+                    onSuccess={(data) => {
+                        setPendingRoleData(data);
                         setStep('interests');
                     }}
                 />
             )}
-            {step === 'interests' && pendingRegData && (
-                <InterestsStep registerData={pendingRegData} />
+            {step === 'interests' && pendingRegData && pendingRoleData && (
+                <InterestsStep registerData={pendingRegData} roleData={pendingRoleData} />
             )}
         </div>
     );

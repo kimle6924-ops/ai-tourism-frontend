@@ -11,6 +11,7 @@ import type { ResourceType } from '../services/ModerationService';
 import CategoryService, { type Category } from '../services/CategoryService';
 import MediaManager from '../components/MediaManager';
 import Swal from 'sweetalert2';
+import AdministrativeUnitService, { type AdministrativeUnit } from '../services/AdministrativeUnitService';
 import { MapPin, Calendar, Star, Plus, Pencil, Trash2, ExternalLink, Clock, CheckCircle, XCircle, FileText, ImageIcon } from 'lucide-react';
 import { ModerationBadge, EventStatusBadge } from '../components/shared/StatusBadges';
 import PlaceFormModal from '../components/shared/PlaceFormModal';
@@ -25,6 +26,27 @@ type ContributorTab = 'overview' | 'places' | 'events' | 'moderation';
 export function ContributorPage() {
     const dispatch = useDispatch<AppDispatch>();
     const [activeTab, setActiveTab] = useState<ContributorTab>('overview');
+    const user = useSelector((state: RootState) => state.login.user);
+
+    // Managed area info
+    const [managedArea, setManagedArea] = useState<AdministrativeUnit | null>(null);
+    const [managedParent, setManagedParent] = useState<AdministrativeUnit | null>(null);
+
+    useEffect(() => {
+        if (user?.administrativeUnitId) {
+            AdministrativeUnitService.getById(user.administrativeUnitId).then(res => {
+                if (res.success) {
+                    setManagedArea(res.data);
+                    // If ward level, also fetch parent province
+                    if (res.data.level === 1 && res.data.parentId) {
+                        AdministrativeUnitService.getById(res.data.parentId).then(parentRes => {
+                            if (parentRes.success) setManagedParent(parentRes.data);
+                        });
+                    }
+                }
+            });
+        }
+    }, [user?.administrativeUnitId]);
 
     // Reuse admin slices (backend filters by contributor scope)
     const { places, loading: placesLoading, totalPages: placesTotalPages, pageNumber: placesPageNumber, actionLoading: placeActionLoading, selectedPlace } = useSelector((state: RootState) => state.adminPlaces);
@@ -125,7 +147,23 @@ export function ContributorPage() {
         <div className="flex h-screen w-full flex-col bg-slate-50">
             {/* Header */}
             <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
-                <span className="text-xl font-bold text-emerald-700">Quản lý nội dung</span>
+                <div className="flex items-center gap-4">
+                    <span className="text-xl font-bold text-emerald-700">Quản lý nội dung</span>
+                    {managedArea && (
+                        <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
+                            <MapPin size={14} />
+                            <span className="font-medium">
+                                {managedArea.level === 1 && managedParent
+                                    ? `${managedArea.name}, ${managedParent.name}`
+                                    : managedArea.name
+                                }
+                            </span>
+                            <span className="text-emerald-500 text-xs">
+                                ({managedArea.level === 0 ? 'Cấp tỉnh' : 'Cấp xã'})
+                            </span>
+                        </div>
+                    )}
+                </div>
                 <ProfileDropdown />
             </header>
 
