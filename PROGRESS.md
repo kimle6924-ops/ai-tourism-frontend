@@ -88,5 +88,23 @@
 **Upload flow:** Lấy signature từ BE → Upload trực tiếp lên Cloudinary → Gọi finalize để lưu DB
 
 ---
-## Phase 6: Trang Contributor — PENDING
+## Phase 6: Trang Contributor — DONE
+
+**Files tạo mới:**
+- `src/routes/contributor.tsx` — Route file cho `/contributor`
+- `src/page/ContributorPage.tsx` — Trang Contributor đầy đủ, theme emerald
+
+**Files cập nhật:**
+- `src/routes/__root.tsx` — Đổi redirect role 1 từ `/administrative-units` sang `/contributor`
+
+**Tính năng:**
+- Theme emerald xanh lá, layout sidebar + content giống Admin
+- 4 tabs: Tổng quan, Địa điểm, Sự kiện, Kiểm duyệt
+- Tổng quan: 4 card thống kê (địa điểm, sự kiện, chờ duyệt địa điểm, chờ duyệt sự kiện) + click điều hướng
+- Địa điểm & Sự kiện: CRUD đầy đủ, form modal, phân trang, MediaManager
+- Kiểm duyệt: sub-tabs địa điểm/sự kiện, xem trạng thái + lịch sử duyệt (chỉ xem, không duyệt)
+- Reuse các Redux slices của Admin (BE tự filter theo scope/role)
+- Nút đăng xuất
+
+---
 ## Phase 7: Tách components dùng chung — PENDING
