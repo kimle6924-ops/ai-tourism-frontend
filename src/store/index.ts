@@ -16,6 +16,7 @@ import adminOverviewReducer from './slice/AdminManagerOverviewSlice';
 import adminPlacesReducer from './slice/AdminPlaceSlice';
 import adminEventsReducer from './slice/AdminEventSlice';
 import moderationReducer from './slice/ModerationSlice';
+import adminCategoriesReducer from './slice/AdminCategorySlice';
 
 export const store = configureStore({
   reducer: {
@@ -36,6 +37,7 @@ export const store = configureStore({
     adminPlaces: adminPlacesReducer,
     adminEvents: adminEventsReducer,
     moderation: moderationReducer,
+    adminCategories: adminCategoriesReducer,
   },
 });
 

@@ -56,7 +56,21 @@
   - Logs modal: hiển thị timeline hành động duyệt/từ chối với ghi chú, thời gian, người thực hiện
 
 ---
-## Phase 4: Quản lý Danh mục (Admin) — PENDING
+## Phase 4: Quản lý Danh mục (Admin) — DONE
+
+**Files tạo mới:**
+- `src/services/AdminCategoryService.ts` — Service gọi API categories (getAll, getById, create, update, delete)
+- `src/store/slice/AdminCategorySlice.ts` — Redux slice với 4 thunks (fetch, create, update, delete)
+
+**Files cập nhật:**
+- `src/store/index.ts` — Đăng ký `adminCategories` reducer
+- `src/page/AdminPage.tsx` — Thêm tab "Quản lý Danh mục":
+  - Bảng 5 cột: Tên (icon Tag), Slug, Loại (badge), Trạng thái (toggle), Thao tác
+  - Form modal nhỏ gọn: name, slug, type (select 5 loại), isActive (toggle chỉ khi sửa)
+  - Badge loại: Chủ đề/Phong cách/Hoạt động/Ngân sách/Đối tượng
+  - CRUD đầy đủ + confirm dialog + phân trang
+
+---
 ## Phase 5: Quản lý Hình ảnh (dùng chung) — PENDING
 ## Phase 6: Trang Contributor — PENDING
 ## Phase 7: Tách components dùng chung — PENDING

@@ -7,6 +7,7 @@ import { fetchOverviewStatsThunk } from '../store/slice/AdminManagerOverviewSlic
 import { fetchAdminPlacesThunk, createPlaceThunk, updatePlaceThunk, deletePlaceThunk, setSelectedPlace } from '../store/slice/AdminPlaceSlice';
 import { fetchAdminEventsThunk, createEventThunk, updateEventThunk, deleteEventThunk, setSelectedEvent } from '../store/slice/AdminEventSlice';
 import { fetchPendingPlacesThunk, fetchPendingEventsThunk, approveResourceThunk, rejectResourceThunk, fetchLogsThunk, clearLogs } from '../store/slice/ModerationSlice';
+import { fetchAdminCategoriesThunk, createCategoryThunk, updateCategoryThunk, deleteCategoryThunk } from '../store/slice/AdminCategorySlice';
 import type { PlaceItem } from '../services/AdminPlaceService';
 import type { CreatePlacePayload } from '../services/AdminPlaceService';
 import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../services/AdminEventService';
@@ -17,9 +18,9 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend
 } from 'recharts';
-import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText, Tag } from 'lucide-react';
 
-type AdminTab = 'overview' | 'users' | 'places' | 'events' | 'moderation';
+type AdminTab = 'overview' | 'users' | 'places' | 'events' | 'moderation' | 'categories';
 
 // ─── Shared Badges ───────────────────────────────────
 const RoleBadge = ({ role }: { role: number }) => {
@@ -341,14 +342,25 @@ export function AdminPage() {
     // Moderation State
     const { pendingPlaces, pendingEvents, placesTotalCount, eventsTotalCount, logs, logsLoading, loading: moderationLoading, actionLoading: moderationActionLoading } = useSelector((state: RootState) => state.moderation);
 
+    // Admin Categories State
+    const { categories: adminCategoryList, loading: categoriesLoading, totalPages: categoriesTotalPages, pageNumber: categoriesPageNumber, actionLoading: categoryActionLoading } = useSelector((state: RootState) => state.adminCategories);
+
     // Local state
     const [showPlaceForm, setShowPlaceForm] = useState(false);
     const [showEventForm, setShowEventForm] = useState(false);
+    const [showCategoryForm, setShowCategoryForm] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [categories, setCategories] = useState<Category[]>([]);
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
 
-    const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading || moderationActionLoading;
+    // Category form fields
+    const [catName, setCatName] = useState('');
+    const [catSlug, setCatSlug] = useState('');
+    const [catType, setCatType] = useState('theme');
+    const [catIsActive, setCatIsActive] = useState(true);
+
+    const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading || moderationActionLoading || categoryActionLoading;
 
     // Load data on tab change
     useEffect(() => {
@@ -371,6 +383,8 @@ export function AdminPage() {
         } else if (activeTab === 'moderation') {
             dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
             dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
+        } else if (activeTab === 'categories') {
+            dispatch(fetchAdminCategoriesThunk({ page: 1, size: 20 }));
         }
     }, [activeTab, dispatch]);
 
@@ -511,6 +525,61 @@ export function AdminPage() {
         return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
+    // ── Category handlers ──
+    const handleCategoryPageChange = (newPage: number) => {
+        dispatch(fetchAdminCategoriesThunk({ page: newPage, size: 20 }));
+    };
+
+    const handleOpenCreateCategory = () => {
+        setEditingCategory(null);
+        setCatName(''); setCatSlug(''); setCatType('theme'); setCatIsActive(true);
+        setShowCategoryForm(true);
+    };
+
+    const handleOpenEditCategory = (cat: Category) => {
+        setEditingCategory(cat);
+        setCatName(cat.name); setCatSlug(cat.slug); setCatType(cat.type); setCatIsActive(cat.isActive);
+        setShowCategoryForm(true);
+    };
+
+    const handleCategoryFormSubmit = async () => {
+        if (!catName.trim() || !catSlug.trim()) {
+            Swal.fire('Thiếu thông tin', 'Vui lòng nhập tên và slug', 'warning');
+            return;
+        }
+        if (editingCategory) {
+            const res = await dispatch(updateCategoryThunk({ id: editingCategory.id, payload: { name: catName.trim(), slug: catSlug.trim(), type: catType, isActive: catIsActive } }));
+            if (updateCategoryThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã cập nhật danh mục', 'success');
+                setShowCategoryForm(false);
+                dispatch(fetchAdminCategoriesThunk({ page: categoriesPageNumber, size: 20 }));
+            } else { Swal.fire('Lỗi', res.payload as string, 'error'); }
+        } else {
+            const res = await dispatch(createCategoryThunk({ name: catName.trim(), slug: catSlug.trim(), type: catType }));
+            if (createCategoryThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã tạo danh mục mới', 'success');
+                setShowCategoryForm(false);
+                dispatch(fetchAdminCategoriesThunk({ page: 1, size: 20 }));
+            } else { Swal.fire('Lỗi', res.payload as string, 'error'); }
+        }
+    };
+
+    const handleDeleteCategory = async (id: string, name: string) => {
+        const confirm = await Swal.fire({ title: 'Xóa danh mục?', text: `Bạn có chắc muốn xóa "${name}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Xóa', cancelButtonText: 'Hủy' });
+        if (confirm.isConfirmed) {
+            const res = await dispatch(deleteCategoryThunk(id));
+            if (deleteCategoryThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã xóa danh mục', 'success');
+                dispatch(fetchAdminCategoriesThunk({ page: categoriesPageNumber, size: 20 }));
+            } else { Swal.fire('Lỗi', res.payload as string, 'error'); }
+        }
+    };
+
+    const categoryTypeLabel = (type: string) => {
+        const map: Record<string, string> = { theme: 'Chủ đề', style: 'Phong cách', activity: 'Hoạt động', budget: 'Ngân sách', companion: 'Đối tượng' };
+        return map[type] || type;
+    };
+
     // ── Moderation handlers ──
     const handleApproveResource = async (resourceType: ResourceType, id: string, title: string) => {
         const confirm = await Swal.fire({ title: 'Duyệt nội dung?', text: `Duyệt "${title}"?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', cancelButtonColor: '#6c757d', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy', input: 'text', inputLabel: 'Ghi chú (không bắt buộc)', inputPlaceholder: 'VD: Đạt yêu cầu' });
@@ -561,6 +630,7 @@ export function AdminPage() {
         { key: 'places', label: 'Quản lý Địa điểm' },
         { key: 'events', label: 'Quản lý Sự kiện' },
         { key: 'moderation', label: 'Kiểm duyệt' },
+        { key: 'categories', label: 'Quản lý Danh mục' },
     ];
 
     // Helper: get category names for a place
@@ -1088,6 +1158,82 @@ export function AdminPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* ════════════ CATEGORIES TAB ════════════ */}
+                    {activeTab === 'categories' && (
+                        <div className="flex flex-col h-full">
+                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
+                                <h1 className="text-2xl font-bold text-gray-800">Quản lý Danh mục</h1>
+                                <button onClick={handleOpenCreateCategory} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+                                    <Plus size={16} /> Thêm danh mục
+                                </button>
+                            </div>
+
+                            <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
+                                <div className="overflow-x-auto flex-1">
+                                    <table className="w-full text-left text-sm text-gray-600 min-w-[600px]">
+                                        <thead className="bg-gray-50 text-xs uppercase text-gray-700 border-b sticky top-0 z-10">
+                                            <tr>
+                                                <th className="px-4 py-3 font-semibold">Tên</th>
+                                                <th className="px-4 py-3 font-semibold">Slug</th>
+                                                <th className="px-4 py-3 font-semibold">Loại</th>
+                                                <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                                                <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y text-gray-800">
+                                            {categoriesLoading && (
+                                                <tr><td colSpan={5} className="py-10 text-center text-gray-500">Loading...</td></tr>
+                                            )}
+                                            {!categoriesLoading && adminCategoryList.map((cat) => (
+                                                <tr key={cat.id} className="hover:bg-gray-50 transition">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <Tag size={14} className="text-gray-400" />
+                                                            <span className="font-semibold text-gray-900">{cat.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{cat.slug}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-semibold text-purple-800">{categoryTypeLabel(cat.type)}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {cat.isActive
+                                                            ? <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Hoạt động</span>
+                                                            : <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-500">Ẩn</span>
+                                                        }
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex justify-end gap-1">
+                                                            <button onClick={() => handleOpenEditCategory(cat)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa">
+                                                                <Pencil size={15} />
+                                                            </button>
+                                                            <button onClick={() => handleDeleteCategory(cat.id, cat.name)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {!categoriesLoading && adminCategoryList.length === 0 && (
+                                                <tr><td colSpan={5} className="py-10 text-center text-gray-500">Không có danh mục.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {!categoriesLoading && categoriesTotalPages > 1 && (
+                                    <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 bg-gray-50 flex-shrink-0">
+                                        <span className="text-sm text-gray-700">Trang <span className="font-semibold">{categoriesPageNumber}</span> / <span className="font-semibold">{categoriesTotalPages}</span></span>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleCategoryPageChange(categoriesPageNumber - 1)} disabled={categoriesPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
+                                            <button onClick={() => handleCategoryPageChange(categoriesPageNumber + 1)} disabled={categoriesPageNumber === categoriesTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </main>
             </div>
 
@@ -1111,6 +1257,53 @@ export function AdminPage() {
                     onSubmit={handleEventFormSubmit}
                     loading={eventActionLoading}
                 />
+            )}
+
+            {/* Category Form Modal */}
+            {showCategoryForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowCategoryForm(false)}>
+                    <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setShowCategoryForm(false)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                        <h2 className="mb-5 text-lg font-bold text-gray-800">{editingCategory ? 'Sửa danh mục' : 'Thêm danh mục mới'}</h2>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Tên danh mục *</label>
+                                <input value={catName} onChange={e => setCatName(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Du lịch biển" />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Slug *</label>
+                                <input value={catSlug} onChange={e => setCatSlug(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm font-mono focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: du-lich-bien" />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">Loại</label>
+                                <select value={catType} onChange={e => setCatType(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                    <option value="theme">Chủ đề</option>
+                                    <option value="style">Phong cách</option>
+                                    <option value="activity">Hoạt động</option>
+                                    <option value="budget">Ngân sách</option>
+                                    <option value="companion">Đối tượng</option>
+                                </select>
+                            </div>
+                            {editingCategory && (
+                                <div className="flex items-center gap-3">
+                                    <label className="text-sm font-medium text-gray-700">Trạng thái</label>
+                                    <button type="button" onClick={() => setCatIsActive(!catIsActive)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${catIsActive ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${catIsActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                    <span className="text-sm text-gray-500">{catIsActive ? 'Hoạt động' : 'Ẩn'}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button onClick={() => setShowCategoryForm(false)} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Hủy</button>
+                                <button onClick={handleCategoryFormSubmit} disabled={categoryActionLoading} className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition">
+                                    {categoryActionLoading ? 'Đang xử lý...' : editingCategory ? 'Cập nhật' : 'Tạo mới'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Moderation Logs Modal */}
