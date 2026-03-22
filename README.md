@@ -1,16 +1,10 @@
-// Cài đặt:
-node version: v24.14.0
-// Cách chạy: npm start
+1. Yêu cầu hệ thống
+Tải docker về máy: https://www.docker.com/products/docker-desktop/
+Clone dự án FE về máy: git clone https://github.com/kimle6924-ops/ai-tourism-frontend.git
+2. Build và khởi chạy hệ thống
+Chạy lệnh này lần đầu tiên hoặc có sửa phía FE thì chạy lại(Lưu ý mở docker desktop lên):  docker compose up --build
+3. Khởi chạy dự án
+Vào trình duyệt bất kỳ và truy cập vào link: http://localhost:3000
 
-
-
-
-
-
-
-
-
-
-
-
-
+// Lưu ý lần sau chỉ cần mở docker và chạy lại dự án bên trong container có hình tam giác là được
+![alt text](image.png)
