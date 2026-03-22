@@ -4,141 +4,315 @@ import { ProfileDropdown } from './HomePage';
 import type { AppDispatch, RootState } from '../store';
 import { fetchAdminUsersThunk, lockUserThunk, unlockUserThunk, approveUserThunk } from '../store/slice/AdminManagerUserSlice';
 import { fetchOverviewStatsThunk } from '../store/slice/AdminManagerOverviewSlice';
+import { fetchAdminPlacesThunk, createPlaceThunk, updatePlaceThunk, deletePlaceThunk, setSelectedPlace } from '../store/slice/AdminPlaceSlice';
+import type { PlaceItem } from '../services/AdminPlaceService';
+import type { CreatePlacePayload } from '../services/AdminPlaceService';
+import CategoryService, { type Category } from '../services/CategoryService';
 import Swal from 'sweetalert2';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend
 } from 'recharts';
-import { Users, MapPin, Calendar, Star, MessageSquare } from 'lucide-react';
+import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X } from 'lucide-react';
 
+type AdminTab = 'overview' | 'users' | 'places';
+
+// ─── Shared Badges ───────────────────────────────────
+const RoleBadge = ({ role }: { role: number }) => {
+    switch (role) {
+        case 0: return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Admin</span>;
+        case 1: return <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-800">Manager</span>;
+        case 2: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">User</span>;
+        default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">Unknown</span>;
+    }
+};
+
+const UserStatusBadge = ({ status }: { status: number }) => {
+    if (status === 0) return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Hoạt động</span>;
+    if (status === 1) return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Bị khóa</span>;
+    return <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">Chờ duyệt</span>;
+};
+
+const ModerationBadge = ({ status }: { status: number }) => {
+    switch (status) {
+        case 0: return <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">Chờ duyệt</span>;
+        case 1: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Đã duyệt</span>;
+        case 2: return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Từ chối</span>;
+        default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">—</span>;
+    }
+};
+
+// ─── Place Form Modal ────────────────────────────────
+interface PlaceFormProps {
+    place: PlaceItem | null; // null = create mode
+    categories: Category[];
+    onClose: () => void;
+    onSubmit: (data: CreatePlacePayload) => void;
+    loading: boolean;
+}
+
+function PlaceFormModal({ place, categories, onClose, onSubmit, loading }: PlaceFormProps) {
+    const [title, setTitle] = useState(place?.title || '');
+    const [description, setDescription] = useState(place?.description || '');
+    const [address, setAddress] = useState(place?.address || '');
+    const [administrativeUnitId, setAdministrativeUnitId] = useState(place?.administrativeUnitId || '');
+    const [latitude, setLatitude] = useState<string>(place?.latitude?.toString() || '');
+    const [longitude, setLongitude] = useState<string>(place?.longitude?.toString() || '');
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(place?.categoryIds || []);
+    const [tags, setTags] = useState(place?.tags?.join(', ') || '');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title.trim() || !description.trim() || !address.trim()) {
+            Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning');
+            return;
+        }
+        onSubmit({
+            title: title.trim(),
+            description: description.trim(),
+            address: address.trim(),
+            administrativeUnitId: administrativeUnitId || '00000000-0000-0000-0000-000000000000',
+            latitude: latitude ? parseFloat(latitude) : null,
+            longitude: longitude ? parseFloat(longitude) : null,
+            categoryIds: selectedCategoryIds,
+            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        });
+    };
+
+    const toggleCategory = (id: string) => {
+        setSelectedCategoryIds(prev =>
+            prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                <h2 className="mb-6 text-xl font-bold text-gray-800">{place ? 'Sửa địa điểm' : 'Thêm địa điểm mới'}</h2>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Title */}
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Tên địa điểm *</label>
+                        <input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Bãi biển Mỹ Khê" />
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Mô tả *</label>
+                        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Mô tả chi tiết về địa điểm..." />
+                    </div>
+
+                    {/* Address */}
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Địa chỉ *</label>
+                        <input value={address} onChange={e => setAddress(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: 123 Đường ABC, Quận XYZ" />
+                    </div>
+
+                    {/* Administrative Unit ID */}
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Mã đơn vị hành chính</label>
+                        <input value={administrativeUnitId} onChange={e => setAdministrativeUnitId(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="UUID đơn vị hành chính" />
+                    </div>
+
+                    {/* Lat/Lng */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ (Latitude)</label>
+                            <input value={latitude} onChange={e => setLatitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: 16.0544" />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Kinh độ (Longitude)</label>
+                            <input value={longitude} onChange={e => setLongitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: 108.2022" />
+                        </div>
+                    </div>
+
+                    {/* Categories */}
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700">Danh mục</label>
+                        <div className="flex flex-wrap gap-2 rounded-lg border p-3 max-h-36 overflow-y-auto">
+                            {categories.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    type="button"
+                                    onClick={() => toggleCategory(cat.id)}
+                                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${selectedCategoryIds.includes(cat.id) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    {cat.name}
+                                </button>
+                            ))}
+                            {categories.length === 0 && <span className="text-xs text-gray-400">Không có danh mục</span>}
+                        </div>
+                    </div>
+
+                    {/* Tags */}
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Tags (phân cách bằng dấu phẩy)</label>
+                        <input value={tags} onChange={e => setTags(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: biển, du lịch, gia đình" />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 pt-2">
+                        <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Hủy</button>
+                        <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition">
+                            {loading ? 'Đang xử lý...' : place ? 'Cập nhật' : 'Tạo mới'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// ─── Main Admin Page ─────────────────────────────────
 export function AdminPage() {
     const dispatch = useDispatch<AppDispatch>();
-    const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
+    const [activeTab, setActiveTab] = useState<AdminTab>('overview');
 
     // User Management State
-    const { users, loading: usersLoading, totalPages, pageNumber, actionLoading } = useSelector((state: RootState) => state.adminUsers);
+    const { users, loading: usersLoading, totalPages: userTotalPages, pageNumber: userPageNumber, actionLoading: userActionLoading } = useSelector((state: RootState) => state.adminUsers);
 
     // Overview State
     const { stats, loading: overviewLoading } = useSelector((state: RootState) => state.adminOverview);
 
-    // Initial load
+    // Places State
+    const { places, loading: placesLoading, totalPages: placesTotalPages, pageNumber: placesPageNumber, actionLoading: placeActionLoading, selectedPlace } = useSelector((state: RootState) => state.adminPlaces);
+
+    // Local state
+    const [showPlaceForm, setShowPlaceForm] = useState(false);
+    const [categories, setCategories] = useState<Category[]>([]);
+
+    const isActionLoading = userActionLoading || placeActionLoading;
+
+    // Load data on tab change
     useEffect(() => {
         if (activeTab === 'users') {
             dispatch(fetchAdminUsersThunk({ page: 1, size: 10 }));
         } else if (activeTab === 'overview') {
             dispatch(fetchOverviewStatsThunk({}));
+        } else if (activeTab === 'places') {
+            dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 }));
+            CategoryService.getCategories(1, 100).then(res => {
+                if (res.success) setCategories(res.data.items);
+            });
         }
     }, [activeTab, dispatch]);
 
-    const handlePageChange = (newPage: number) => {
+    // ── User handlers ──
+    const handleUserPageChange = (newPage: number) => {
         dispatch(fetchAdminUsersThunk({ page: newPage, size: 10 }));
     };
 
     const handleLock = async (id: string, currentStatus: number) => {
         if (currentStatus === 1) return;
-        const confirm = await Swal.fire({
-            title: 'Khóa tài khoản?',
-            text: 'Tài khoản này sẽ không thể đăng nhập!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Khóa',
-            cancelButtonText: 'Hủy'
-        });
+        const confirm = await Swal.fire({ title: 'Khóa tài khoản?', text: 'Tài khoản này sẽ không thể đăng nhập!', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Khóa', cancelButtonText: 'Hủy' });
         if (confirm.isConfirmed) {
             const res = await dispatch(lockUserThunk(id));
-            if (lockUserThunk.fulfilled.match(res)) {
-                Swal.fire('Thành công', 'Đã khóa tài khoản', 'success');
-                dispatch(fetchAdminUsersThunk({ page: pageNumber, size: 10 }));
-            } else {
-                Swal.fire('Lỗi', res.payload as string, 'error');
-            }
+            if (lockUserThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã khóa tài khoản', 'success'); dispatch(fetchAdminUsersThunk({ page: userPageNumber, size: 10 })); }
+            else Swal.fire('Lỗi', res.payload as string, 'error');
         }
     };
 
     const handleUnlock = async (id: string) => {
-        const confirm = await Swal.fire({
-            title: 'Mở khóa tài khoản?',
-            text: 'Tài khoản sẽ hoạt động bình thường.',
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Mở khóa',
-            cancelButtonText: 'Hủy'
-        });
+        const confirm = await Swal.fire({ title: 'Mở khóa tài khoản?', text: 'Tài khoản sẽ hoạt động bình thường.', icon: 'info', showCancelButton: true, confirmButtonColor: '#3085d6', cancelButtonColor: '#d33', confirmButtonText: 'Mở khóa', cancelButtonText: 'Hủy' });
         if (confirm.isConfirmed) {
             const res = await dispatch(unlockUserThunk(id));
-            if (unlockUserThunk.fulfilled.match(res)) {
-                Swal.fire('Thành công', 'Đã mở khóa tài khoản', 'success');
-                dispatch(fetchAdminUsersThunk({ page: pageNumber, size: 10 }));
-            } else {
-                Swal.fire('Lỗi', res.payload as string, 'error');
-            }
+            if (unlockUserThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã mở khóa tài khoản', 'success'); dispatch(fetchAdminUsersThunk({ page: userPageNumber, size: 10 })); }
+            else Swal.fire('Lỗi', res.payload as string, 'error');
         }
     };
 
     const handleApprove = async (id: string) => {
-        const confirm = await Swal.fire({
-            title: 'Duyệt tài khoản?',
-            text: 'Tài khoản sẽ được phê duyệt.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Duyệt',
-            cancelButtonText: 'Hủy'
-        });
+        const confirm = await Swal.fire({ title: 'Duyệt tài khoản?', text: 'Tài khoản sẽ được phê duyệt.', icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', cancelButtonColor: '#d33', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy' });
         if (confirm.isConfirmed) {
             const res = await dispatch(approveUserThunk(id));
-            if (approveUserThunk.fulfilled.match(res)) {
-                Swal.fire('Thành công', 'Đã duyệt tài khoản', 'success');
-                dispatch(fetchAdminUsersThunk({ page: pageNumber, size: 10 }));
+            if (approveUserThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã duyệt tài khoản', 'success'); dispatch(fetchAdminUsersThunk({ page: userPageNumber, size: 10 })); }
+            else Swal.fire('Lỗi', res.payload as string, 'error');
+        }
+    };
+
+    // ── Place handlers ──
+    const handlePlacePageChange = (newPage: number) => {
+        dispatch(fetchAdminPlacesThunk({ page: newPage, size: 10 }));
+    };
+
+    const handleOpenCreatePlace = () => {
+        dispatch(setSelectedPlace(null));
+        setShowPlaceForm(true);
+    };
+
+    const handleOpenEditPlace = (place: PlaceItem) => {
+        dispatch(setSelectedPlace(place));
+        setShowPlaceForm(true);
+    };
+
+    const handlePlaceFormSubmit = async (data: CreatePlacePayload) => {
+        if (selectedPlace) {
+            const res = await dispatch(updatePlaceThunk({ id: selectedPlace.id, payload: data }));
+            if (updatePlaceThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã cập nhật địa điểm', 'success');
+                setShowPlaceForm(false);
+                dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 }));
+            } else {
+                Swal.fire('Lỗi', res.payload as string, 'error');
+            }
+        } else {
+            const res = await dispatch(createPlaceThunk(data));
+            if (createPlaceThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã tạo địa điểm mới', 'success');
+                setShowPlaceForm(false);
+                dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 }));
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
             }
         }
     };
 
-    const RoleBadge = ({ role }: { role: number }) => {
-        switch (role) {
-            case 0: return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Admin</span>;
-            case 1: return <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-800">Manager</span>;
-            case 2: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">User</span>;
-            default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">Unknown</span>;
+    const handleDeletePlace = async (id: string, title: string) => {
+        const confirm = await Swal.fire({ title: 'Xóa địa điểm?', text: `Bạn có chắc muốn xóa "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Xóa', cancelButtonText: 'Hủy' });
+        if (confirm.isConfirmed) {
+            const res = await dispatch(deletePlaceThunk(id));
+            if (deletePlaceThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã xóa địa điểm', 'success');
+                dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 }));
+            } else {
+                Swal.fire('Lỗi', res.payload as string, 'error');
+            }
         }
     };
 
-    const StatusBadge = ({ status }: { status: number }) => {
-        if (status === 0) return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Hoạt động</span>;
-        if (status === 1) return <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">Bị khóa</span>;
-        return <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">Chờ duyệt ({status})</span>;
-    };
-
-    // Format Data for Charts
+    // ── Chart data ──
     const formatChartData = () => {
         if (!stats) return [];
-        return stats.timeSeries.users.map((item, index) => {
-            // we assume all Series have same length and order
-            return {
-                date: new Date(item.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
-                users: item.count,
-                places: stats.timeSeries.places[index]?.count || 0,
-                events: stats.timeSeries.events[index]?.count || 0,
-                reviews: stats.timeSeries.reviews[index]?.count || 0,
-            };
-        });
+        return stats.timeSeries.users.map((item: any, index: number) => ({
+            date: new Date(item.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+            users: item.count,
+            places: stats.timeSeries.places[index]?.count || 0,
+            events: stats.timeSeries.events[index]?.count || 0,
+            reviews: stats.timeSeries.reviews[index]?.count || 0,
+        }));
     };
-
     const chartData = formatChartData();
+
+    // ── Sidebar config ──
+    const sidebarTabs: { key: AdminTab; label: string }[] = [
+        { key: 'overview', label: 'Tổng quan' },
+        { key: 'users', label: 'Quản lý Người dùng' },
+        { key: 'places', label: 'Quản lý Địa điểm' },
+    ];
+
+    // Helper: get category names for a place
+    const getCategoryNames = (categoryIds: string[]) => {
+        return categoryIds.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).join(', ') || '—';
+    };
 
     return (
         <div className="flex h-screen w-full flex-col bg-gray-50">
             {/* Header */}
             <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
                 <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold text-[#00008A]">Thống kê Admin</span>
+                    <span className="text-xl font-bold text-[#00008A]">Quản trị hệ thống</span>
                 </div>
                 <div className="flex items-center gap-4">
                     <ProfileDropdown />
@@ -148,31 +322,26 @@ export function AdminPage() {
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar */}
                 <aside className="w-64 border-r bg-white p-4 shadow-sm h-full flex flex-col gap-2">
-                    <button
-                        onClick={() => setActiveTab('overview')}
-                        className={`flex items-center gap-3 rounded-lg p-3 w-full text-left font-medium transition ${activeTab === 'overview' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    >
-                        Tổng quan
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('users')}
-                        className={`flex items-center gap-3 rounded-lg p-3 w-full text-left font-medium transition ${activeTab === 'users' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    >
-                        Quản lý Người dùng
-                    </button>
-                    {/* <button className="flex items-center gap-3 rounded-lg p-3 w-full text-left font-medium text-gray-600 hover:bg-gray-100 transition">
-                        Cài đặt hệ thống
-                    </button> */}
+                    {sidebarTabs.map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`flex items-center gap-3 rounded-lg p-3 w-full text-left font-medium transition ${activeTab === tab.key ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </aside>
 
                 {/* Main Content */}
                 <main className="flex-1 overflow-y-auto p-8 relative">
-                    {actionLoading && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm">
+                    {isActionLoading && (
+                        <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/50 backdrop-blur-sm">
                             <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#00008A] border-t-transparent" />
                         </div>
                     )}
 
+                    {/* ════════════ OVERVIEW TAB ════════════ */}
                     {activeTab === 'overview' && (
                         <div>
                             <div className="mb-8 flex items-center justify-between">
@@ -183,60 +352,32 @@ export function AdminPage() {
                             {stats && !overviewLoading && (
                                 <>
                                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-                                        <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                                            <div className="flex justify-between items-start">
-                                                <div className="text-sm font-medium text-gray-500">Người dùng</div>
-                                                <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><Users size={20} /></div>
+                                        {[
+                                            { label: 'Người dùng', value: stats.users.total, sub: `${stats.users.active} đang hoạt động`, icon: <Users size={20} />, color: 'blue' },
+                                            { label: 'Địa điểm', value: stats.places.total, sub: `${stats.places.approved} đã được duyệt`, icon: <MapPin size={20} />, color: 'green' },
+                                            { label: 'Sự kiện', value: stats.events.total, sub: `${stats.events.upcoming} sắp diễn ra`, icon: <Calendar size={20} />, color: 'purple' },
+                                            { label: 'Đánh giá', value: stats.reviews.total, sub: `${stats.reviews.averageRating.toFixed(1)} sao TB`, icon: <Star size={20} />, color: 'yellow' },
+                                            { label: 'Tin nhắn Chat', value: stats.chat.totalMessages, sub: `${stats.chat.totalConversations} cuộc hội thoại`, icon: <MessageSquare size={20} />, color: 'teal' },
+                                        ].map((card, i) => (
+                                            <div key={i} className="rounded-xl border bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition cursor-pointer"
+                                                onClick={() => {
+                                                    if (card.label === 'Người dùng') setActiveTab('users');
+                                                    if (card.label === 'Địa điểm') setActiveTab('places');
+                                                }}
+                                            >
+                                                <div className="flex justify-between items-start">
+                                                    <div className="text-sm font-medium text-gray-500">{card.label}</div>
+                                                    <div className={`p-2 bg-${card.color}-50 rounded-lg text-${card.color}-600`}>{card.icon}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="mt-2 text-3xl font-bold text-gray-800">{card.value}</div>
+                                                    <div className="text-xs text-gray-500 mt-1">{card.sub}</div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div className="mt-2 text-3xl font-bold text-gray-800">{stats.users.total}</div>
-                                                <div className="text-xs text-blue-600 mt-1">{stats.users.active} đang hoạt động</div>
-                                            </div>
-                                        </div>
-                                        <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                                            <div className="flex justify-between items-start">
-                                                <div className="text-sm font-medium text-gray-500">Địa điểm</div>
-                                                <div className="p-2 bg-green-50 rounded-lg text-green-600"><MapPin size={20} /></div>
-                                            </div>
-                                            <div>
-                                                <div className="mt-2 text-3xl font-bold text-gray-800">{stats.places.total}</div>
-                                                <div className="text-xs text-green-600 mt-1">{stats.places.approved} đã được duyệt</div>
-                                            </div>
-                                        </div>
-                                        <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                                            <div className="flex justify-between items-start">
-                                                <div className="text-sm font-medium text-gray-500">Sự kiện</div>
-                                                <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><Calendar size={20} /></div>
-                                            </div>
-                                            <div>
-                                                <div className="mt-2 text-3xl font-bold text-gray-800">{stats.events.total}</div>
-                                                <div className="text-xs text-purple-600 mt-1">{stats.events.upcoming} sắp diễn ra</div>
-                                            </div>
-                                        </div>
-                                        <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                                            <div className="flex justify-between items-start">
-                                                <div className="text-sm font-medium text-gray-500">Đánh giá</div>
-                                                <div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><Star size={20} /></div>
-                                            </div>
-                                            <div>
-                                                <div className="mt-2 text-3xl font-bold text-gray-800">{stats.reviews.total}</div>
-                                                <div className="text-xs text-gray-500 mt-1">Lên tới {stats.reviews.averageRating.toFixed(1)} sao TB</div>
-                                            </div>
-                                        </div>
-                                        <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                                            <div className="flex justify-between items-start">
-                                                <div className="text-sm font-medium text-gray-500">Tin nhắn Chat</div>
-                                                <div className="p-2 bg-teal-50 rounded-lg text-teal-600"><MessageSquare size={20} /></div>
-                                            </div>
-                                            <div>
-                                                <div className="mt-2 text-3xl font-bold text-gray-800">{stats.chat.totalMessages}</div>
-                                                <div className="text-xs text-gray-500 mt-1">Trong {stats.chat.totalConversations} cuộc hội thoại</div>
-                                            </div>
-                                        </div>
+                                        ))}
                                     </div>
 
                                     <div className="grid gap-6 lg:grid-cols-3 mt-6">
-                                        {/* Chart 1: Content Growth */}
                                         <div className="col-span-2 rounded-xl border bg-white p-6 shadow-sm">
                                             <h3 className="text-lg font-bold text-gray-800 mb-6">Tăng trưởng nội dung (29 ngày)</h3>
                                             <div className="h-80 w-full text-sm">
@@ -255,7 +396,6 @@ export function AdminPage() {
                                             </div>
                                         </div>
 
-                                        {/* Activity Bars */}
                                         <div className="col-span-1 rounded-xl border bg-white p-6 shadow-sm flex flex-col">
                                             <h3 className="text-lg font-bold text-gray-800 mb-6">Đánh giá mới</h3>
                                             <div className="flex-1 w-full min-h-[300px] text-sm">
@@ -277,6 +417,7 @@ export function AdminPage() {
                         </div>
                     )}
 
+                    {/* ════════════ USERS TAB ════════════ */}
                     {activeTab === 'users' && (
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex items-center justify-between flex-shrink-0">
@@ -295,11 +436,9 @@ export function AdminPage() {
                                                 <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y text-gray-800 relative">
+                                        <tbody className="divide-y text-gray-800">
                                             {usersLoading && (
-                                                <tr>
-                                                    <td colSpan={5} className="py-10 text-center text-gray-500">Loading...</td>
-                                                </tr>
+                                                <tr><td colSpan={5} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
                                             {!usersLoading && users.map((u) => (
                                                 <tr key={u.id} className="hover:bg-gray-50 transition">
@@ -320,7 +459,7 @@ export function AdminPage() {
                                                     </td>
                                                     <td className="px-4 py-3">{u.phone || '—'}</td>
                                                     <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
-                                                    <td className="px-4 py-3"><StatusBadge status={u.status} /></td>
+                                                    <td className="px-4 py-3"><UserStatusBadge status={u.status} /></td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-2">
                                                             {u.role !== 0 && (
@@ -330,7 +469,9 @@ export function AdminPage() {
                                                                     ) : (
                                                                         <button onClick={() => handleUnlock(u.id)} className="px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition">Mở Khóa</button>
                                                                     )}
-                                                                    <button onClick={() => handleApprove(u.id)} className="px-3 py-1.5 text-xs font-semibold rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition">Duyệt</button>
+                                                                    {u.status === 2 && (
+                                                                        <button onClick={() => handleApprove(u.id)} className="px-3 py-1.5 text-xs font-semibold rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition">Duyệt</button>
+                                                                    )}
                                                                 </>
                                                             )}
                                                         </div>
@@ -338,31 +479,108 @@ export function AdminPage() {
                                                 </tr>
                                             ))}
                                             {!usersLoading && users.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={5} className="py-10 text-center text-gray-500">Không có dữ liệu.</td>
-                                                </tr>
+                                                <tr><td colSpan={5} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
 
-                                {/* Pagination */}
-                                {!usersLoading && totalPages > 1 && (
+                                {!usersLoading && userTotalPages > 1 && (
                                     <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 bg-gray-50 flex-shrink-0">
-                                        <span className="text-sm text-gray-700">
-                                            Trang <span className="font-semibold">{pageNumber}</span> / <span className="font-semibold">{totalPages}</span>
-                                        </span>
+                                        <span className="text-sm text-gray-700">Trang <span className="font-semibold">{userPageNumber}</span> / <span className="font-semibold">{userTotalPages}</span></span>
                                         <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handlePageChange(pageNumber - 1)}
-                                                disabled={pageNumber === 1}
-                                                className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition"
-                                            >Trước</button>
-                                            <button
-                                                onClick={() => handlePageChange(pageNumber + 1)}
-                                                disabled={pageNumber === totalPages}
-                                                className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition"
-                                            >Sau</button>
+                                            <button onClick={() => handleUserPageChange(userPageNumber - 1)} disabled={userPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
+                                            <button onClick={() => handleUserPageChange(userPageNumber + 1)} disabled={userPageNumber === userTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ════════════ PLACES TAB ════════════ */}
+                    {activeTab === 'places' && (
+                        <div className="flex flex-col h-full">
+                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
+                                <h1 className="text-2xl font-bold text-gray-800">Quản lý Địa điểm</h1>
+                                <button onClick={handleOpenCreatePlace} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+                                    <Plus size={16} /> Thêm địa điểm
+                                </button>
+                            </div>
+
+                            <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
+                                <div className="overflow-x-auto flex-1">
+                                    <table className="w-full text-left text-sm text-gray-600 min-w-[900px]">
+                                        <thead className="bg-gray-50 text-xs uppercase text-gray-700 border-b sticky top-0 z-10">
+                                            <tr>
+                                                <th className="px-4 py-3 font-semibold">Ảnh</th>
+                                                <th className="px-4 py-3 font-semibold">Tên địa điểm</th>
+                                                <th className="px-4 py-3 font-semibold">Địa chỉ</th>
+                                                <th className="px-4 py-3 font-semibold">Danh mục</th>
+                                                <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                                                <th className="px-4 py-3 font-semibold">Đánh giá</th>
+                                                <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y text-gray-800">
+                                            {placesLoading && (
+                                                <tr><td colSpan={7} className="py-10 text-center text-gray-500">Loading...</td></tr>
+                                            )}
+                                            {!placesLoading && places.map((p) => (
+                                                <tr key={p.id} className="hover:bg-gray-50 transition">
+                                                    <td className="px-4 py-3">
+                                                        <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
+                                                            {p.images?.find(img => img.isPrimary)?.url || p.images?.[0]?.url ? (
+                                                                <img src={p.images.find(img => img.isPrimary)?.url || p.images[0]?.url} alt={p.title} className="h-full w-full object-cover" />
+                                                            ) : (
+                                                                <div className="h-full w-full flex items-center justify-center text-gray-400"><MapPin size={16} /></div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-semibold text-gray-900 max-w-[200px] truncate">{p.title}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="max-w-[180px] truncate text-gray-500">{p.address || '—'}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="max-w-[150px] truncate text-xs text-gray-500">{getCategoryNames(p.categoryIds)}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3"><ModerationBadge status={p.moderationStatus} /></td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-1">
+                                                            <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                                                            <span className="text-sm font-medium">{p.averageRating?.toFixed(1) || '—'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex justify-end gap-1">
+                                                            <button onClick={() => handleOpenEditPlace(p)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa">
+                                                                <Pencil size={15} />
+                                                            </button>
+                                                            <button onClick={() => handleDeletePlace(p.id, p.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                            <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết">
+                                                                <ExternalLink size={15} />
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {!placesLoading && places.length === 0 && (
+                                                <tr><td colSpan={7} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {!placesLoading && placesTotalPages > 1 && (
+                                    <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 bg-gray-50 flex-shrink-0">
+                                        <span className="text-sm text-gray-700">Trang <span className="font-semibold">{placesPageNumber}</span> / <span className="font-semibold">{placesTotalPages}</span></span>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handlePlacePageChange(placesPageNumber - 1)} disabled={placesPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
+                                            <button onClick={() => handlePlacePageChange(placesPageNumber + 1)} disabled={placesPageNumber === placesTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
                                         </div>
                                     </div>
                                 )}
@@ -371,6 +589,17 @@ export function AdminPage() {
                     )}
                 </main>
             </div>
+
+            {/* Place Form Modal */}
+            {showPlaceForm && (
+                <PlaceFormModal
+                    place={selectedPlace}
+                    categories={categories}
+                    onClose={() => setShowPlaceForm(false)}
+                    onSubmit={handlePlaceFormSubmit}
+                    loading={placeActionLoading}
+                />
+            )}
         </div>
     );
 }
