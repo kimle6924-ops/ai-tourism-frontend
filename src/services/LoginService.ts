@@ -16,6 +16,7 @@ export interface UserInfo {
   avatarUrl: string;
   role: number;
   status: number;
+  administrativeUnitId: string | null;
 }
 
 export interface LoginResponseData {

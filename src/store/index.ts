@@ -13,6 +13,11 @@ import locationUserReducer from './slice/LocationUserSlice';
 import locationRecommendReducer from './slice/LocationRecommendSlice';
 import adminUsersReducer from './slice/AdminManagerUserSlice';
 import adminOverviewReducer from './slice/AdminManagerOverviewSlice';
+import adminPlacesReducer from './slice/AdminPlaceSlice';
+import adminEventsReducer from './slice/AdminEventSlice';
+import moderationReducer from './slice/ModerationSlice';
+import adminCategoriesReducer from './slice/AdminCategorySlice';
+import mediaReducer from './slice/MediaSlice';
 
 export const store = configureStore({
   reducer: {
@@ -30,6 +35,11 @@ export const store = configureStore({
     locationRecommend: locationRecommendReducer,
     adminUsers: adminUsersReducer,
     adminOverview: adminOverviewReducer,
+    adminPlaces: adminPlacesReducer,
+    adminEvents: adminEventsReducer,
+    moderation: moderationReducer,
+    adminCategories: adminCategoriesReducer,
+    media: mediaReducer,
   },
 });
 

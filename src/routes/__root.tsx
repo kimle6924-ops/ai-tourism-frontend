@@ -21,8 +21,8 @@ function RootComponent() {
 
       if (role === 0 && !path.startsWith('/admin')) {
         navigate({ to: '/admin' });
-      } else if (role === 1 && !path.startsWith('/administrative-units')) {
-        navigate({ to: '/administrative-units' });
+      } else if (role === 1 && !path.startsWith('/contributor')) {
+        navigate({ to: '/contributor' });
       } else if (role === 2 && path === '/auth') {
         navigate({ to: '/' });
       }
