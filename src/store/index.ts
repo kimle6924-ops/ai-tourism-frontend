@@ -14,6 +14,7 @@ import locationRecommendReducer from './slice/LocationRecommendSlice';
 import adminUsersReducer from './slice/AdminManagerUserSlice';
 import adminOverviewReducer from './slice/AdminManagerOverviewSlice';
 import adminPlacesReducer from './slice/AdminPlaceSlice';
+import adminEventsReducer from './slice/AdminEventSlice';
 
 export const store = configureStore({
   reducer: {
@@ -32,6 +33,7 @@ export const store = configureStore({
     adminUsers: adminUsersReducer,
     adminOverview: adminOverviewReducer,
     adminPlaces: adminPlacesReducer,
+    adminEvents: adminEventsReducer,
   },
 });
 

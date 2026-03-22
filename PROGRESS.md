@@ -21,7 +21,22 @@
 
 ---
 
-## Phase 2: Quản lý Sự kiện (Admin) — PENDING
+## Phase 2: Quản lý Sự kiện (Admin) — DONE
+
+**Files tạo mới:**
+- `src/services/AdminEventService.ts` — Service gọi API events (getAll, getById, create, update, delete)
+- `src/store/slice/AdminEventSlice.ts` — Redux slice với 4 thunks (fetch, create, update, delete)
+
+**Files cập nhật:**
+- `src/store/index.ts` — Đăng ký `adminEvents` reducer
+- `src/page/AdminPage.tsx` — Thêm tab "Quản lý Sự kiện":
+  - Bảng 8 cột: Ảnh, Tên, Địa điểm, Thời gian (start→end), Trạng thái SK, Kiểm duyệt, Đánh giá, Thao tác
+  - EventFormModal: title, description, address, startAt/endAt (datetime-local), eventStatus (select khi sửa), adminUnitId, lat/lng, categories, tags
+  - EventStatusBadge: Sắp diễn ra (xanh dương), Đang diễn ra (xanh lá), Đã kết thúc (xám)
+  - CRUD đầy đủ + confirm dialog + phân trang
+  - Click card "Sự kiện" ở Tổng quan → điều hướng sang tab events
+
+---
 ## Phase 3: Kiểm duyệt (Admin) — PENDING
 ## Phase 4: Quản lý Danh mục (Admin) — PENDING
 ## Phase 5: Quản lý Hình ảnh (dùng chung) — PENDING

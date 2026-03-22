@@ -5,17 +5,19 @@ import type { AppDispatch, RootState } from '../store';
 import { fetchAdminUsersThunk, lockUserThunk, unlockUserThunk, approveUserThunk } from '../store/slice/AdminManagerUserSlice';
 import { fetchOverviewStatsThunk } from '../store/slice/AdminManagerOverviewSlice';
 import { fetchAdminPlacesThunk, createPlaceThunk, updatePlaceThunk, deletePlaceThunk, setSelectedPlace } from '../store/slice/AdminPlaceSlice';
+import { fetchAdminEventsThunk, createEventThunk, updateEventThunk, deleteEventThunk, setSelectedEvent } from '../store/slice/AdminEventSlice';
 import type { PlaceItem } from '../services/AdminPlaceService';
 import type { CreatePlacePayload } from '../services/AdminPlaceService';
+import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../services/AdminEventService';
 import CategoryService, { type Category } from '../services/CategoryService';
 import Swal from 'sweetalert2';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend
 } from 'recharts';
-import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X } from 'lucide-react';
+import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock } from 'lucide-react';
 
-type AdminTab = 'overview' | 'users' | 'places';
+type AdminTab = 'overview' | 'users' | 'places' | 'events';
 
 // ─── Shared Badges ───────────────────────────────────
 const RoleBadge = ({ role }: { role: number }) => {
@@ -41,6 +43,158 @@ const ModerationBadge = ({ status }: { status: number }) => {
         default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">—</span>;
     }
 };
+
+const EventStatusBadge = ({ status }: { status: number }) => {
+    switch (status) {
+        case 0: return <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-800">Sắp diễn ra</span>;
+        case 1: return <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">Đang diễn ra</span>;
+        case 2: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">Đã kết thúc</span>;
+        default: return <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">—</span>;
+    }
+};
+
+// ─── Event Form Modal ────────────────────────────────
+interface EventFormProps {
+    event: EventItem | null;
+    categories: Category[];
+    onClose: () => void;
+    onSubmit: (data: CreateEventPayload | UpdateEventPayload) => void;
+    loading: boolean;
+}
+
+function EventFormModal({ event, categories, onClose, onSubmit, loading }: EventFormProps) {
+    const [title, setTitle] = useState(event?.title || '');
+    const [description, setDescription] = useState(event?.description || '');
+    const [address, setAddress] = useState(event?.address || '');
+    const [administrativeUnitId, setAdministrativeUnitId] = useState(event?.administrativeUnitId || '');
+    const [latitude, setLatitude] = useState<string>(event?.latitude?.toString() || '');
+    const [longitude, setLongitude] = useState<string>(event?.longitude?.toString() || '');
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(event?.categoryIds || []);
+    const [tags, setTags] = useState(event?.tags?.join(', ') || '');
+    const [startAt, setStartAt] = useState(event?.startAt ? event.startAt.slice(0, 16) : '');
+    const [endAt, setEndAt] = useState(event?.endAt ? event.endAt.slice(0, 16) : '');
+    const [eventStatus, setEventStatus] = useState<number>(event?.eventStatus ?? 0);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title.trim() || !description.trim() || !address.trim() || !startAt || !endAt) {
+            Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning');
+            return;
+        }
+        const base = {
+            title: title.trim(),
+            description: description.trim(),
+            address: address.trim(),
+            administrativeUnitId: administrativeUnitId || '00000000-0000-0000-0000-000000000000',
+            latitude: latitude ? parseFloat(latitude) : null,
+            longitude: longitude ? parseFloat(longitude) : null,
+            categoryIds: selectedCategoryIds,
+            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+            startAt: new Date(startAt).toISOString(),
+            endAt: new Date(endAt).toISOString(),
+        };
+        if (event) {
+            onSubmit({ ...base, eventStatus });
+        } else {
+            onSubmit(base);
+        }
+    };
+
+    const toggleCategory = (id: string) => {
+        setSelectedCategoryIds(prev =>
+            prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                <h2 className="mb-6 text-xl font-bold text-gray-800">{event ? 'Sửa sự kiện' : 'Thêm sự kiện mới'}</h2>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Tên sự kiện *</label>
+                        <input value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Lễ hội hoa Đà Lạt" />
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Mô tả *</label>
+                        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Mô tả chi tiết về sự kiện..." />
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Địa điểm tổ chức *</label>
+                        <input value={address} onChange={e => setAddress(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: Quảng trường Lâm Viên, Đà Lạt" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Bắt đầu *</label>
+                            <input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Kết thúc *</label>
+                            <input type="datetime-local" value={endAt} onChange={e => setEndAt(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        </div>
+                    </div>
+
+                    {event && (
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Trạng thái sự kiện</label>
+                            <select value={eventStatus} onChange={e => setEventStatus(Number(e.target.value))} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value={0}>Sắp diễn ra</option>
+                                <option value={1}>Đang diễn ra</option>
+                                <option value={2}>Đã kết thúc</option>
+                            </select>
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Mã đơn vị hành chính</label>
+                        <input value={administrativeUnitId} onChange={e => setAdministrativeUnitId(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="UUID đơn vị hành chính" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ</label>
+                            <input value={latitude} onChange={e => setLatitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Kinh độ</label>
+                            <input value={longitude} onChange={e => setLongitude(e.target.value)} type="number" step="any" className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700">Danh mục</label>
+                        <div className="flex flex-wrap gap-2 rounded-lg border p-3 max-h-36 overflow-y-auto">
+                            {categories.map(cat => (
+                                <button key={cat.id} type="button" onClick={() => toggleCategory(cat.id)}
+                                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${selectedCategoryIds.includes(cat.id) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                                    {cat.name}
+                                </button>
+                            ))}
+                            {categories.length === 0 && <span className="text-xs text-gray-400">Không có danh mục</span>}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Tags (phân cách bằng dấu phẩy)</label>
+                        <input value={tags} onChange={e => setTags(e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="VD: lễ hội, văn hóa, mùa xuân" />
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-2">
+                        <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Hủy</button>
+                        <button type="submit" disabled={loading} className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition">
+                            {loading ? 'Đang xử lý...' : event ? 'Cập nhật' : 'Tạo mới'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
 
 // ─── Place Form Modal ────────────────────────────────
 interface PlaceFormProps {
@@ -179,11 +333,15 @@ export function AdminPage() {
     // Places State
     const { places, loading: placesLoading, totalPages: placesTotalPages, pageNumber: placesPageNumber, actionLoading: placeActionLoading, selectedPlace } = useSelector((state: RootState) => state.adminPlaces);
 
+    // Events State
+    const { events, loading: eventsLoading, totalPages: eventsTotalPages, pageNumber: eventsPageNumber, actionLoading: eventActionLoading, selectedEvent } = useSelector((state: RootState) => state.adminEvents);
+
     // Local state
     const [showPlaceForm, setShowPlaceForm] = useState(false);
+    const [showEventForm, setShowEventForm] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
 
-    const isActionLoading = userActionLoading || placeActionLoading;
+    const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading;
 
     // Load data on tab change
     useEffect(() => {
@@ -196,6 +354,13 @@ export function AdminPage() {
             CategoryService.getCategories(1, 100).then(res => {
                 if (res.success) setCategories(res.data.items);
             });
+        } else if (activeTab === 'events') {
+            dispatch(fetchAdminEventsThunk({ page: 1, size: 10 }));
+            if (categories.length === 0) {
+                CategoryService.getCategories(1, 100).then(res => {
+                    if (res.success) setCategories(res.data.items);
+                });
+            }
         }
     }, [activeTab, dispatch]);
 
@@ -282,6 +447,60 @@ export function AdminPage() {
         }
     };
 
+    // ── Event handlers ──
+    const handleEventPageChange = (newPage: number) => {
+        dispatch(fetchAdminEventsThunk({ page: newPage, size: 10 }));
+    };
+
+    const handleOpenCreateEvent = () => {
+        dispatch(setSelectedEvent(null));
+        setShowEventForm(true);
+    };
+
+    const handleOpenEditEvent = (event: EventItem) => {
+        dispatch(setSelectedEvent(event));
+        setShowEventForm(true);
+    };
+
+    const handleEventFormSubmit = async (data: CreateEventPayload | UpdateEventPayload) => {
+        if (selectedEvent) {
+            const res = await dispatch(updateEventThunk({ id: selectedEvent.id, payload: data as UpdateEventPayload }));
+            if (updateEventThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã cập nhật sự kiện', 'success');
+                setShowEventForm(false);
+                dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 }));
+            } else {
+                Swal.fire('Lỗi', res.payload as string, 'error');
+            }
+        } else {
+            const res = await dispatch(createEventThunk(data as CreateEventPayload));
+            if (createEventThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã tạo sự kiện mới', 'success');
+                setShowEventForm(false);
+                dispatch(fetchAdminEventsThunk({ page: 1, size: 10 }));
+            } else {
+                Swal.fire('Lỗi', res.payload as string, 'error');
+            }
+        }
+    };
+
+    const handleDeleteEvent = async (id: string, title: string) => {
+        const confirm = await Swal.fire({ title: 'Xóa sự kiện?', text: `Bạn có chắc muốn xóa "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Xóa', cancelButtonText: 'Hủy' });
+        if (confirm.isConfirmed) {
+            const res = await dispatch(deleteEventThunk(id));
+            if (deleteEventThunk.fulfilled.match(res)) {
+                Swal.fire('Thành công', 'Đã xóa sự kiện', 'success');
+                dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 }));
+            } else {
+                Swal.fire('Lỗi', res.payload as string, 'error');
+            }
+        }
+    };
+
+    const formatDateTime = (iso: string) => {
+        return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
     // ── Chart data ──
     const formatChartData = () => {
         if (!stats) return [];
@@ -300,6 +519,7 @@ export function AdminPage() {
         { key: 'overview', label: 'Tổng quan' },
         { key: 'users', label: 'Quản lý Người dùng' },
         { key: 'places', label: 'Quản lý Địa điểm' },
+        { key: 'events', label: 'Quản lý Sự kiện' },
     ];
 
     // Helper: get category names for a place
@@ -363,6 +583,7 @@ export function AdminPage() {
                                                 onClick={() => {
                                                     if (card.label === 'Người dùng') setActiveTab('users');
                                                     if (card.label === 'Địa điểm') setActiveTab('places');
+                                                    if (card.label === 'Sự kiện') setActiveTab('events');
                                                 }}
                                             >
                                                 <div className="flex justify-between items-start">
@@ -587,6 +808,101 @@ export function AdminPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* ════════════ EVENTS TAB ════════════ */}
+                    {activeTab === 'events' && (
+                        <div className="flex flex-col h-full">
+                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
+                                <h1 className="text-2xl font-bold text-gray-800">Quản lý Sự kiện</h1>
+                                <button onClick={handleOpenCreateEvent} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+                                    <Plus size={16} /> Thêm sự kiện
+                                </button>
+                            </div>
+
+                            <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
+                                <div className="overflow-x-auto flex-1">
+                                    <table className="w-full text-left text-sm text-gray-600 min-w-[1000px]">
+                                        <thead className="bg-gray-50 text-xs uppercase text-gray-700 border-b sticky top-0 z-10">
+                                            <tr>
+                                                <th className="px-4 py-3 font-semibold">Ảnh</th>
+                                                <th className="px-4 py-3 font-semibold">Tên sự kiện</th>
+                                                <th className="px-4 py-3 font-semibold">Địa điểm</th>
+                                                <th className="px-4 py-3 font-semibold">Thời gian</th>
+                                                <th className="px-4 py-3 font-semibold">Trạng thái SK</th>
+                                                <th className="px-4 py-3 font-semibold">Kiểm duyệt</th>
+                                                <th className="px-4 py-3 font-semibold">Đánh giá</th>
+                                                <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y text-gray-800">
+                                            {eventsLoading && (
+                                                <tr><td colSpan={8} className="py-10 text-center text-gray-500">Loading...</td></tr>
+                                            )}
+                                            {!eventsLoading && events.map((ev) => (
+                                                <tr key={ev.id} className="hover:bg-gray-50 transition">
+                                                    <td className="px-4 py-3">
+                                                        <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
+                                                            {ev.images?.find(img => img.isPrimary)?.url || ev.images?.[0]?.url ? (
+                                                                <img src={ev.images.find(img => img.isPrimary)?.url || ev.images[0]?.url} alt={ev.title} className="h-full w-full object-cover" />
+                                                            ) : (
+                                                                <div className="h-full w-full flex items-center justify-center text-gray-400"><Calendar size={16} /></div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-semibold text-gray-900 max-w-[180px] truncate">{ev.title}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="max-w-[150px] truncate text-gray-500">{ev.address || '—'}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="text-xs text-gray-600">
+                                                            <div className="flex items-center gap-1"><Clock size={12} /> {formatDateTime(ev.startAt)}</div>
+                                                            <div className="text-gray-400 mt-0.5">→ {formatDateTime(ev.endAt)}</div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3"><EventStatusBadge status={ev.eventStatus} /></td>
+                                                    <td className="px-4 py-3"><ModerationBadge status={ev.moderationStatus} /></td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-1">
+                                                            <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                                                            <span className="text-sm font-medium">{ev.averageRating?.toFixed(1) || '—'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex justify-end gap-1">
+                                                            <button onClick={() => handleOpenEditEvent(ev)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa">
+                                                                <Pencil size={15} />
+                                                            </button>
+                                                            <button onClick={() => handleDeleteEvent(ev.id, ev.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                            <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết">
+                                                                <ExternalLink size={15} />
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {!eventsLoading && events.length === 0 && (
+                                                <tr><td colSpan={8} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {!eventsLoading && eventsTotalPages > 1 && (
+                                    <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 bg-gray-50 flex-shrink-0">
+                                        <span className="text-sm text-gray-700">Trang <span className="font-semibold">{eventsPageNumber}</span> / <span className="font-semibold">{eventsTotalPages}</span></span>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleEventPageChange(eventsPageNumber - 1)} disabled={eventsPageNumber === 1} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Trước</button>
+                                            <button onClick={() => handleEventPageChange(eventsPageNumber + 1)} disabled={eventsPageNumber === eventsTotalPages} className="px-3 py-1 border rounded bg-white text-sm hover:bg-gray-100 disabled:opacity-50 transition">Sau</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </main>
             </div>
 
@@ -598,6 +914,17 @@ export function AdminPage() {
                     onClose={() => setShowPlaceForm(false)}
                     onSubmit={handlePlaceFormSubmit}
                     loading={placeActionLoading}
+                />
+            )}
+
+            {/* Event Form Modal */}
+            {showEventForm && (
+                <EventFormModal
+                    event={selectedEvent}
+                    categories={categories}
+                    onClose={() => setShowEventForm(false)}
+                    onSubmit={handleEventFormSubmit}
+                    loading={eventActionLoading}
                 />
             )}
         </div>
