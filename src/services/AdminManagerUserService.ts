@@ -7,6 +7,7 @@ export interface AdminUser {
     phone: string;
     avatarUrl: string;
     role: number;
+    contributorType: number | null;
     status: number;
     latitude: number | null;
     longitude: number | null;

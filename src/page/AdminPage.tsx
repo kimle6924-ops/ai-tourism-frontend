@@ -8,6 +8,7 @@ import { fetchAdminPlacesThunk, createPlaceThunk, updatePlaceThunk, deletePlaceT
 import { fetchAdminEventsThunk, createEventThunk, updateEventThunk, deleteEventThunk, setSelectedEvent } from '../store/slice/AdminEventSlice';
 import { fetchPendingPlacesThunk, fetchPendingEventsThunk, approveResourceThunk, rejectResourceThunk, fetchLogsThunk, clearLogs } from '../store/slice/ModerationSlice';
 import { fetchAdminCategoriesThunk, createCategoryThunk, updateCategoryThunk, deleteCategoryThunk } from '../store/slice/AdminCategorySlice';
+import { fetchAdminReviewsThunk, approveReviewThunk, hideReviewThunk, setReviewStatusFilter } from '../store/slice/AdminReviewSlice';
 import type { PlaceItem, CreatePlacePayload } from '../services/AdminPlaceService';
 import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../services/AdminEventService';
 import type { ResourceType } from '../services/ModerationService';
@@ -17,16 +18,16 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend
 } from 'recharts';
-import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText, Tag, ImageIcon } from 'lucide-react';
+import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText, Tag, ImageIcon, Eye, EyeOff } from 'lucide-react';
 import MediaManager from '../components/MediaManager';
-import { RoleBadge, UserStatusBadge, ModerationBadge, EventStatusBadge } from '../components/shared/StatusBadges';
+import { RoleBadge, UserStatusBadge, ModerationBadge, EventStatusBadge, ContributorTypeBadge, ReviewStatusBadge } from '../components/shared/StatusBadges';
 import PlaceFormModal from '../components/shared/PlaceFormModal';
 import EventFormModal from '../components/shared/EventFormModal';
 import LogsModal from '../components/shared/LogsModal';
 import Pagination from '../components/shared/Pagination';
 import { formatDateTime, categoryTypeLabel } from '../components/shared/utils';
 
-type AdminTab = 'overview' | 'users' | 'places' | 'events' | 'moderation' | 'categories';
+type AdminTab = 'overview' | 'users' | 'places' | 'events' | 'moderation' | 'categories' | 'reviews';
 
 // ─── Main Admin Page ─────────────────────────────────
 export function AdminPage() {
@@ -51,6 +52,9 @@ export function AdminPage() {
     // Admin Categories State
     const { categories: adminCategoryList, loading: categoriesLoading, totalPages: categoriesTotalPages, pageNumber: categoriesPageNumber, actionLoading: categoryActionLoading } = useSelector((state: RootState) => state.adminCategories);
 
+    // Admin Reviews State
+    const { reviews: adminReviews, loading: reviewsLoading, totalPages: reviewsTotalPages, pageNumber: reviewsPageNumber, actionLoading: reviewActionLoading, statusFilter: reviewStatusFilter } = useSelector((state: RootState) => state.adminReviews);
+
     // Local state
     const [showPlaceForm, setShowPlaceForm] = useState(false);
     const [showEventForm, setShowEventForm] = useState(false);
@@ -67,7 +71,7 @@ export function AdminPage() {
     const [catType, setCatType] = useState('theme');
     const [catIsActive, setCatIsActive] = useState(true);
 
-    const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading || moderationActionLoading || categoryActionLoading;
+    const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading || moderationActionLoading || categoryActionLoading || reviewActionLoading;
 
     // Load data on tab change
     useEffect(() => {
@@ -92,6 +96,8 @@ export function AdminPage() {
             dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
         } else if (activeTab === 'categories') {
             dispatch(fetchAdminCategoriesThunk({ page: 1, size: 20 }));
+        } else if (activeTab === 'reviews') {
+            dispatch(fetchAdminReviewsThunk({ page: 1, size: 10, status: reviewStatusFilter }));
         }
     }, [activeTab, dispatch]);
 
@@ -308,6 +314,34 @@ export function AdminPage() {
         setShowLogsModal(true);
     };
 
+    // ── Review handlers ──
+    const handleReviewPageChange = (newPage: number) => {
+        dispatch(fetchAdminReviewsThunk({ page: newPage, size: 10, status: reviewStatusFilter }));
+    };
+
+    const handleReviewStatusFilterChange = (status: number | undefined) => {
+        dispatch(setReviewStatusFilter(status));
+        dispatch(fetchAdminReviewsThunk({ page: 1, size: 10, status }));
+    };
+
+    const handleApproveReview = async (id: string) => {
+        const confirm = await Swal.fire({ title: 'Duyệt đánh giá?', text: 'Đánh giá sẽ hiển thị công khai.', icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy' });
+        if (confirm.isConfirmed) {
+            const res = await dispatch(approveReviewThunk(id));
+            if (approveReviewThunk.fulfilled.match(res)) Swal.fire({ title: 'Đã duyệt', icon: 'success', timer: 1500, showConfirmButton: false });
+            else Swal.fire('Lỗi', res.payload as string, 'error');
+        }
+    };
+
+    const handleHideReview = async (id: string) => {
+        const confirm = await Swal.fire({ title: 'Ẩn đánh giá?', text: 'Đánh giá sẽ bị ẩn khỏi công khai.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ẩn', cancelButtonText: 'Hủy' });
+        if (confirm.isConfirmed) {
+            const res = await dispatch(hideReviewThunk(id));
+            if (hideReviewThunk.fulfilled.match(res)) Swal.fire({ title: 'Đã ẩn', icon: 'success', timer: 1500, showConfirmButton: false });
+            else Swal.fire('Lỗi', res.payload as string, 'error');
+        }
+    };
+
     // ── Chart data ──
     const formatChartData = () => {
         if (!stats) return [];
@@ -328,6 +362,7 @@ export function AdminPage() {
         { key: 'places', label: 'Quản lý Địa điểm' },
         { key: 'events', label: 'Quản lý Sự kiện' },
         { key: 'moderation', label: 'Kiểm duyệt' },
+        { key: 'reviews', label: 'Quản lý Đánh giá' },
         { key: 'categories', label: 'Quản lý Danh mục' },
     ];
 
@@ -462,13 +497,14 @@ export function AdminPage() {
                                                 <th className="px-4 py-3 font-semibold">Người dùng</th>
                                                 <th className="px-4 py-3 font-semibold">SĐT</th>
                                                 <th className="px-4 py-3 font-semibold">Vai trò</th>
+                                                <th className="px-4 py-3 font-semibold">Cấp đóng góp</th>
                                                 <th className="px-4 py-3 font-semibold">Trạng thái</th>
                                                 <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y text-gray-800">
                                             {usersLoading && (
-                                                <tr><td colSpan={5} className="py-10 text-center text-gray-500">Loading...</td></tr>
+                                                <tr><td colSpan={6} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
                                             {!usersLoading && users.map((u) => (
                                                 <tr key={u.id} className="hover:bg-gray-50 transition">
@@ -489,6 +525,7 @@ export function AdminPage() {
                                                     </td>
                                                     <td className="px-4 py-3">{u.phone || '—'}</td>
                                                     <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
+                                                    <td className="px-4 py-3">{u.contributorType !== null && u.contributorType !== undefined ? <ContributorTypeBadge contributorType={u.contributorType} /> : <span className="text-xs text-gray-400">—</span>}</td>
                                                     <td className="px-4 py-3"><UserStatusBadge status={u.status} /></td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-2">
@@ -509,7 +546,7 @@ export function AdminPage() {
                                                 </tr>
                                             ))}
                                             {!usersLoading && users.length === 0 && (
-                                                <tr><td colSpan={5} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
+                                                <tr><td colSpan={6} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
@@ -798,6 +835,100 @@ export function AdminPage() {
                         </div>
                     )}
 
+                    {/* ════════════ REVIEWS TAB ════════════ */}
+                    {activeTab === 'reviews' && (
+                        <div className="flex flex-col h-full">
+                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
+                                <h1 className="text-2xl font-bold text-gray-800">Quản lý Đánh giá</h1>
+                            </div>
+
+                            {/* Status filter */}
+                            <div className="mb-4 flex gap-2 flex-shrink-0">
+                                {[
+                                    { label: 'Tất cả', value: undefined },
+                                    { label: 'Chờ duyệt', value: 0 },
+                                    { label: 'Đã duyệt', value: 1 },
+                                    { label: 'Đã ẩn', value: 2 },
+                                ].map(opt => (
+                                    <button
+                                        key={opt.label}
+                                        onClick={() => handleReviewStatusFilterChange(opt.value)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${reviewStatusFilter === opt.value ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
+                                <div className="overflow-x-auto flex-1">
+                                    <table className="w-full text-left text-sm text-gray-600 min-w-[800px]">
+                                        <thead className="bg-gray-50 text-xs uppercase text-gray-700 border-b sticky top-0 z-10">
+                                            <tr>
+                                                <th className="px-4 py-3 font-semibold">Người đánh giá</th>
+                                                <th className="px-4 py-3 font-semibold">Nội dung</th>
+                                                <th className="px-4 py-3 font-semibold">Điểm</th>
+                                                <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                                                <th className="px-4 py-3 font-semibold">Ngày tạo</th>
+                                                <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y text-gray-800">
+                                            {reviewsLoading && (
+                                                <tr><td colSpan={6} className="py-10 text-center text-gray-500">Loading...</td></tr>
+                                            )}
+                                            {!reviewsLoading && adminReviews.map((review) => (
+                                                <tr key={review.id} className="hover:bg-gray-50 transition">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-8 w-8 rounded-full bg-purple-100 flex-shrink-0 overflow-hidden">
+                                                                {review.userAvatarUrl ? (
+                                                                    <img src={review.userAvatarUrl} alt="" className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    <div className="h-full w-full flex items-center justify-center text-purple-700 font-bold text-xs">{review.userFullName?.charAt(0) || '?'}</div>
+                                                                )}
+                                                            </div>
+                                                            <span className="font-medium text-gray-900 text-sm">{review.userFullName || 'Ẩn danh'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="max-w-[250px] truncate text-gray-700">{review.comment}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-1">
+                                                            <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                                                            <span className="font-medium">{review.rating}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3"><ReviewStatusBadge status={review.status} /></td>
+                                                    <td className="px-4 py-3 text-xs text-gray-500">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex justify-end gap-1">
+                                                            {review.status !== 1 && (
+                                                                <button onClick={() => handleApproveReview(review.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt">
+                                                                    <Eye size={14} /> Duyệt
+                                                                </button>
+                                                            )}
+                                                            {review.status !== 2 && (
+                                                                <button onClick={() => handleHideReview(review.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Ẩn">
+                                                                    <EyeOff size={14} /> Ẩn
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {!reviewsLoading && adminReviews.length === 0 && (
+                                                <tr><td colSpan={6} className="py-10 text-center text-gray-500">Không có đánh giá nào.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {!reviewsLoading && <Pagination currentPage={reviewsPageNumber} totalPages={reviewsTotalPages} onPageChange={handleReviewPageChange} />}
+                            </div>
+                        </div>
+                    )}
+
                     {/* ════════════ CATEGORIES TAB ════════════ */}
                     {activeTab === 'categories' && (
                         <div className="flex flex-col h-full">
@@ -889,8 +1020,8 @@ export function AdminPage() {
 
             {/* Category Form Modal */}
             {showCategoryForm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowCategoryForm(false)}>
-                    <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
                         <button onClick={() => setShowCategoryForm(false)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
                         <h2 className="mb-5 text-lg font-bold text-gray-800">{editingCategory ? 'Sửa danh mục' : 'Thêm danh mục mới'}</h2>
 

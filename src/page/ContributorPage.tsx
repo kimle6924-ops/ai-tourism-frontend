@@ -13,7 +13,7 @@ import MediaManager from '../components/MediaManager';
 import Swal from 'sweetalert2';
 import AdministrativeUnitService, { type AdministrativeUnit } from '../services/AdministrativeUnitService';
 import { MapPin, Calendar, Star, Plus, Pencil, Trash2, ExternalLink, Clock, CheckCircle, XCircle, FileText, ImageIcon } from 'lucide-react';
-import { ModerationBadge, EventStatusBadge } from '../components/shared/StatusBadges';
+import { ModerationBadge, EventStatusBadge, ContributorTypeBadge } from '../components/shared/StatusBadges';
 import PlaceFormModal from '../components/shared/PlaceFormModal';
 import EventFormModal from '../components/shared/EventFormModal';
 import LogsModal from '../components/shared/LogsModal';
@@ -22,11 +22,23 @@ import { formatDateTime } from '../components/shared/utils';
 
 type ContributorTab = 'overview' | 'places' | 'events' | 'moderation';
 
+// ContributorType: 0=Central, 1=Province, 2=Ward, 3=Collaborator
+const CONTRIBUTOR_TYPE_LABELS: Record<number, string> = {
+    0: 'Trung ương',
+    1: 'Cấp tỉnh',
+    2: 'Cấp xã',
+    3: 'Cộng tác viên',
+};
+
 // ─── Main Contributor Page ───────────────────────────
 export function ContributorPage() {
     const dispatch = useDispatch<AppDispatch>();
     const [activeTab, setActiveTab] = useState<ContributorTab>('overview');
     const user = useSelector((state: RootState) => state.login.user);
+
+    const contributorType = user?.contributorType ?? null;
+    const isCentral = contributorType === 0;
+    const isCTV = contributorType === 3;
 
     // Managed area info
     const [managedArea, setManagedArea] = useState<AdministrativeUnit | null>(null);
@@ -37,7 +49,6 @@ export function ContributorPage() {
             AdministrativeUnitService.getById(user.administrativeUnitId).then(res => {
                 if (res.success) {
                     setManagedArea(res.data);
-                    // If ward level, also fetch parent province
                     if (res.data.level === 1 && res.data.parentId) {
                         AdministrativeUnitService.getById(res.data.parentId).then(parentRes => {
                             if (parentRes.success) setManagedParent(parentRes.data);
@@ -63,13 +74,24 @@ export function ContributorPage() {
 
     const isActionLoading = placeActionLoading || eventActionLoading || moderationActionLoading;
 
+    // Build sidebar tabs based on role
+    const sidebarTabs: { key: ContributorTab; label: string }[] = [
+        { key: 'overview', label: 'Tổng quan' },
+        { key: 'places', label: 'Quản lý Địa điểm' },
+        { key: 'events', label: 'Quản lý Sự kiện' },
+        // CTV cannot moderate
+        ...(!isCTV ? [{ key: 'moderation' as ContributorTab, label: 'Kiểm duyệt' }] : []),
+    ];
+
     // Load data on tab change
     useEffect(() => {
         if (activeTab === 'overview') {
             dispatch(fetchAdminPlacesThunk({ page: 1, size: 50 }));
             dispatch(fetchAdminEventsThunk({ page: 1, size: 50 }));
-            dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
-            dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
+            if (!isCTV) {
+                dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
+                dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
+            }
         } else if (activeTab === 'places') {
             dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 }));
             CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
@@ -133,15 +155,11 @@ export function ContributorPage() {
     };
     const handleViewLogs = (resourceType: ResourceType, id: string) => { dispatch(fetchLogsThunk({ resourceType, id })); setShowLogsModal(true); };
 
-    // ── Sidebar ──
-    const sidebarTabs: { key: ContributorTab; label: string }[] = [
-        { key: 'overview', label: 'Tổng quan' },
-        { key: 'places', label: 'Quản lý Địa điểm' },
-        { key: 'events', label: 'Quản lý Sự kiện' },
-        { key: 'moderation', label: 'Kiểm duyệt' },
-    ];
-
     const getCategoryNames = (ids: string[]) => ids.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).join(', ') || '—';
+
+    // Determine forced area: Central can choose freely, others are forced
+    const forcedAreaId = isCentral ? undefined : (user?.administrativeUnitId || undefined);
+    const forcedAreaLabel = isCentral ? undefined : (managedArea ? (managedArea.level === 1 && managedParent ? `${managedArea.name}, ${managedParent.name}` : managedArea.name) : undefined);
 
     return (
         <div className="flex h-screen w-full flex-col bg-slate-50">
@@ -149,7 +167,12 @@ export function ContributorPage() {
             <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
                 <div className="flex items-center gap-4">
                     <span className="text-xl font-bold text-emerald-700">Quản lý nội dung</span>
-                    {managedArea && (
+                    {/* Show contributor type badge */}
+                    {contributorType !== null && (
+                        <ContributorTypeBadge contributorType={contributorType} />
+                    )}
+                    {/* Show managed area (not for Central) */}
+                    {!isCentral && managedArea && (
                         <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
                             <MapPin size={14} />
                             <span className="font-medium">
@@ -161,6 +184,12 @@ export function ContributorPage() {
                             <span className="text-emerald-500 text-xs">
                                 ({managedArea.level === 0 ? 'Cấp tỉnh' : 'Cấp xã'})
                             </span>
+                        </div>
+                    )}
+                    {isCentral && (
+                        <div className="flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1.5 text-sm text-purple-700">
+                            <MapPin size={14} />
+                            <span className="font-medium">Toàn quốc</span>
                         </div>
                     )}
                 </div>
@@ -189,7 +218,22 @@ export function ContributorPage() {
                     {/* ════════════ OVERVIEW ════════════ */}
                     {activeTab === 'overview' && (
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-800 mb-6">Tổng quan</h1>
+                            <h1 className="text-2xl font-bold text-gray-800 mb-2">Tổng quan</h1>
+                            {isCTV && (
+                                <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                                    Bạn là <strong>Cộng tác viên</strong> — nội dung bạn tạo sẽ cần được duyệt trước khi hiển thị công khai. Chỉnh sửa nội dung đã duyệt sẽ chuyển về trạng thái chờ duyệt.
+                                </div>
+                            )}
+                            {!isCTV && !isCentral && (
+                                <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                                    Bạn là <strong>{CONTRIBUTOR_TYPE_LABELS[contributorType!]}</strong> — nội dung bạn tạo sẽ được tự động duyệt.
+                                </div>
+                            )}
+                            {isCentral && (
+                                <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm text-purple-800">
+                                    Bạn là <strong>Trung ương</strong> — có quyền quản lý và kiểm duyệt nội dung toàn quốc. Nội dung bạn tạo sẽ được tự động duyệt.
+                                </div>
+                            )}
                             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                                 <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => setActiveTab('places')}>
                                     <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Địa điểm</div><div className="p-2 bg-green-50 rounded-lg text-green-600"><MapPin size={20} /></div></div>
@@ -201,14 +245,18 @@ export function ContributorPage() {
                                     <div className="mt-2 text-3xl font-bold text-gray-800">{events.length}</div>
                                     <div className="text-xs text-gray-500 mt-1">Trong phạm vi quản lý</div>
                                 </div>
-                                <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => { setActiveTab('moderation'); setModerationSubTab('places'); }}>
-                                    <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Địa điểm chờ duyệt</div><div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><CheckCircle size={20} /></div></div>
-                                    <div className="mt-2 text-3xl font-bold text-gray-800">{placesTotalCount}</div>
-                                </div>
-                                <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => { setActiveTab('moderation'); setModerationSubTab('events'); }}>
-                                    <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Sự kiện chờ duyệt</div><div className="p-2 bg-orange-50 rounded-lg text-orange-600"><CheckCircle size={20} /></div></div>
-                                    <div className="mt-2 text-3xl font-bold text-gray-800">{eventsTotalCount}</div>
-                                </div>
+                                {!isCTV && (
+                                    <>
+                                        <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => { setActiveTab('moderation'); setModerationSubTab('places'); }}>
+                                            <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Địa điểm chờ duyệt</div><div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><CheckCircle size={20} /></div></div>
+                                            <div className="mt-2 text-3xl font-bold text-gray-800">{placesTotalCount}</div>
+                                        </div>
+                                        <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => { setActiveTab('moderation'); setModerationSubTab('events'); }}>
+                                            <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Sự kiện chờ duyệt</div><div className="p-2 bg-orange-50 rounded-lg text-orange-600"><CheckCircle size={20} /></div></div>
+                                            <div className="mt-2 text-3xl font-bold text-gray-800">{eventsTotalCount}</div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -299,7 +347,7 @@ export function ContributorPage() {
                     )}
 
                     {/* ════════════ MODERATION ════════════ */}
-                    {activeTab === 'moderation' && (
+                    {activeTab === 'moderation' && !isCTV && (
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800 mb-4">Kiểm duyệt nội dung</h1>
@@ -364,8 +412,8 @@ export function ContributorPage() {
             </div>
 
             {/* Modals */}
-            {showPlaceForm && <PlaceFormModal place={selectedPlace} categories={categories} onClose={() => setShowPlaceForm(false)} onSubmit={handlePlaceFormSubmit} loading={placeActionLoading} accentColor="emerald" forcedAdministrativeUnitId={user?.administrativeUnitId} forcedAdministrativeUnitLabel={managedArea ? (managedArea.level === 1 && managedParent ? `${managedArea.name}, ${managedParent.name}` : managedArea.name) : undefined} />}
-            {showEventForm && <EventFormModal event={selectedEvent} categories={categories} onClose={() => setShowEventForm(false)} onSubmit={handleEventFormSubmit} loading={eventActionLoading} accentColor="emerald" forcedAdministrativeUnitId={user?.administrativeUnitId} forcedAdministrativeUnitLabel={managedArea ? (managedArea.level === 1 && managedParent ? `${managedArea.name}, ${managedParent.name}` : managedArea.name) : undefined} />}
+            {showPlaceForm && <PlaceFormModal place={selectedPlace} categories={categories} onClose={() => setShowPlaceForm(false)} onSubmit={handlePlaceFormSubmit} loading={placeActionLoading} accentColor="emerald" forcedAdministrativeUnitId={forcedAreaId} forcedAdministrativeUnitLabel={forcedAreaLabel} />}
+            {showEventForm && <EventFormModal event={selectedEvent} categories={categories} onClose={() => setShowEventForm(false)} onSubmit={handleEventFormSubmit} loading={eventActionLoading} accentColor="emerald" forcedAdministrativeUnitId={forcedAreaId} forcedAdministrativeUnitLabel={forcedAreaLabel} />}
             {mediaTarget && <MediaManager resourceType={mediaTarget.resourceType} resourceId={mediaTarget.resourceId} resourceTitle={mediaTarget.title} onClose={() => setMediaTarget(null)} />}
             {showLogsModal && <LogsModal logs={logs} loading={logsLoading} onClose={() => { setShowLogsModal(false); dispatch(clearLogs()); }} />}
         </div>

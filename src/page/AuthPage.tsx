@@ -22,8 +22,17 @@ interface RegisterData {
 
 interface RoleData {
     role: number;
+    contributorType?: number;
     administrativeUnitId?: string;
 }
+
+// ContributorType enum matching BE
+const CONTRIBUTOR_TYPE = {
+    Central: 0,
+    Province: 1,
+    Ward: 2,
+    Collaborator: 3,
+} as const;
 
 const TYPE_EMOJI: Record<string, string> = {
     theme: '🗺️', style: '✨', activity: '🏃', budget: '💰', companion: '👥',
@@ -130,7 +139,7 @@ function RegisterForm({ onSwitch, onSuccess }: { onSwitch: () => void; onSuccess
 }
 
 // ─────────────────────────────────────────────
-// Role Select + khu vực (Contributor đăng ký luôn ở bước này)
+// Role Select + khu vực
 // ─────────────────────────────────────────────
 function RoleSelectStep({
     registerData,
@@ -147,7 +156,8 @@ function RoleSelectStep({
     const { loading: regLoading, error: regError } = useSelector((s: RootState) => s.register);
 
     const [role, setRole] = useState<number | null>(null);
-    const [adminLevel, setAdminLevel] = useState<'province' | 'ward'>('province');
+    // ContributorType: 0=Central, 1=Province, 2=Ward, 3=Collaborator
+    const [contributorType, setContributorType] = useState<number | null>(null);
     const [provinces, setProvinces] = useState<AdministrativeUnit[]>([]);
     const [wards, setWards] = useState<AdministrativeUnit[]>([]);
     const [selectedProvince, setSelectedProvince] = useState('');
@@ -156,9 +166,16 @@ function RoleSelectStep({
     const [unitError, setUnitError] = useState('');
     const [error, setError] = useState('');
 
-    // Load provinces when contributor is selected
+    // Cần chọn tỉnh/xã cho: Province, Ward, Collaborator
+    const needsProvince = contributorType === CONTRIBUTOR_TYPE.Province
+        || contributorType === CONTRIBUTOR_TYPE.Ward
+        || contributorType === CONTRIBUTOR_TYPE.Collaborator;
+    const needsWard = contributorType === CONTRIBUTOR_TYPE.Ward
+        || contributorType === CONTRIBUTOR_TYPE.Collaborator;
+
+    // Load provinces when contributor type that needs province is selected
     useEffect(() => {
-        if (role === 1 && provinces.length === 0) {
+        if (role === 1 && needsProvince && provinces.length === 0) {
             setLoadingUnits(true);
             setUnitError('');
             AdministrativeUnitService.getByLevel(0)
@@ -172,11 +189,11 @@ function RoleSelectStep({
                 .catch(() => setUnitError('Lỗi kết nối khi tải danh sách tỉnh/thành phố'))
                 .finally(() => setLoadingUnits(false));
         }
-    }, [role]);
+    }, [role, needsProvince]);
 
-    // Load wards when province is selected and admin level is ward
+    // Load wards when province selected and needs ward
     useEffect(() => {
-        if (adminLevel === 'ward' && selectedProvince) {
+        if (needsWard && selectedProvince) {
             setLoadingUnits(true);
             setWards([]);
             setSelectedWard('');
@@ -194,7 +211,7 @@ function RoleSelectStep({
                 .catch(() => setUnitError('Lỗi kết nối khi tải danh sách xã/phường'))
                 .finally(() => setLoadingUnits(false));
         }
-    }, [adminLevel, selectedProvince]);
+    }, [needsWard, selectedProvince]);
 
     const handleContinue = async () => {
         setError('');
@@ -203,20 +220,26 @@ function RoleSelectStep({
         // User → tiếp tục sang bước sở thích
         if (role === 2) { onUserContinue(); return; }
 
-        // Contributor → validate khu vực rồi đăng ký luôn
-        let administrativeUnitId = '';
-        if (adminLevel === 'province') {
+        // Contributor → validate
+        if (contributorType === null) { setError('Vui lòng chọn cấp quản lý'); return; }
+
+        let administrativeUnitId: string | undefined;
+
+        if (contributorType === CONTRIBUTOR_TYPE.Central) {
+            // Central không cần chọn khu vực
+        } else if (contributorType === CONTRIBUTOR_TYPE.Province) {
             if (!selectedProvince) { setError('Vui lòng chọn tỉnh/thành phố'); return; }
             administrativeUnitId = selectedProvince;
         } else {
+            // Ward + Collaborator: cần chọn xã
             if (!selectedWard) { setError('Vui lòng chọn xã/phường'); return; }
             administrativeUnitId = selectedWard;
         }
 
-        // Đăng ký Contributor (không cần sở thích)
         const regResult = await dispatch(registerThunk({
             ...registerData,
             role: 1,
+            contributorType,
             administrativeUnitId,
             categoryIds: [],
         }));
@@ -226,6 +249,13 @@ function RoleSelectStep({
         }
     };
 
+    const contributorTypeOptions = [
+        { value: CONTRIBUTOR_TYPE.Central, label: 'Trung ương', desc: 'Quản lý toàn quốc', icon: '🏛️', color: 'purple' },
+        { value: CONTRIBUTOR_TYPE.Province, label: 'Cấp Tỉnh', desc: 'Quản lý cấp tỉnh/thành phố', icon: '🏙️', color: 'blue' },
+        { value: CONTRIBUTOR_TYPE.Ward, label: 'Cấp Xã', desc: 'Quản lý cấp xã/phường', icon: '🏘️', color: 'emerald' },
+        { value: CONTRIBUTOR_TYPE.Collaborator, label: 'Cộng tác viên', desc: 'Đăng bài địa điểm, sự kiện', icon: '🤝', color: 'orange' },
+    ];
+
     return (
         <div className="w-full max-w-lg rounded-2xl bg-white/95 backdrop-blur-md px-10 py-10 shadow-2xl">
             <h2 className="mb-2 text-center font-bold text-[#00008A] text-2xl">Bạn là ai?</h2>
@@ -233,7 +263,7 @@ function RoleSelectStep({
 
             {/* Role cards */}
             <div className="grid grid-cols-2 gap-4 mb-6">
-                <button type="button" onClick={() => { setRole(2); setError(''); }}
+                <button type="button" onClick={() => { setRole(2); setContributorType(null); setError(''); }}
                     className={`rounded-xl border-2 p-5 text-left transition hover:shadow-md ${role === 2 ? 'border-[#00008A] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}>
                     <div className="text-3xl mb-2">🧳</div>
                     <div className="font-bold text-gray-800">Người dùng</div>
@@ -247,57 +277,73 @@ function RoleSelectStep({
                 </button>
             </div>
 
-            {/* Administrative unit selection for Contributor */}
+            {/* Contributor type selection */}
             {role === 1 && (
                 <div className="space-y-4 mb-6 rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-gray-700">Cấp quản lý</label>
-                        <div className="flex gap-3">
-                            <button type="button" onClick={() => { setAdminLevel('province'); setSelectedWard(''); setUnitError(''); }}
-                                className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition ${adminLevel === 'province' ? 'bg-emerald-600 text-white shadow' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                Cấp Tỉnh/Thành phố
-                            </button>
-                            <button type="button" onClick={() => { setAdminLevel('ward'); setUnitError(''); }}
-                                className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition ${adminLevel === 'ward' ? 'bg-emerald-600 text-white shadow' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                Cấp Xã/Phường
-                            </button>
+                        <div className="grid grid-cols-2 gap-2">
+                            {contributorTypeOptions.map(opt => (
+                                <button key={opt.value} type="button"
+                                    onClick={() => {
+                                        setContributorType(opt.value);
+                                        setSelectedProvince('');
+                                        setSelectedWard('');
+                                        setUnitError('');
+                                        setError('');
+                                    }}
+                                    className={`rounded-lg border-2 p-3 text-left transition text-sm ${
+                                        contributorType === opt.value
+                                            ? 'border-emerald-500 bg-emerald-100 shadow-sm'
+                                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                                    }`}>
+                                    <div className="text-lg">{opt.icon}</div>
+                                    <div className="font-semibold text-gray-800 text-xs mt-1">{opt.label}</div>
+                                    <div className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</div>
+                                </button>
+                            ))}
                         </div>
                     </div>
 
-                    {loadingUnits && provinces.length === 0 ? (
-                        <div className="flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-                            Đang tải danh sách...
-                        </div>
-                    ) : (
+                    {/* Province/Ward selection - chỉ hiện khi cần */}
+                    {needsProvince && (
                         <>
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-gray-700">
-                                    {adminLevel === 'province' ? 'Chọn Tỉnh/Thành phố' : 'Chọn Tỉnh/Thành phố (để lọc xã)'}
-                                </label>
-                                <select value={selectedProvince} onChange={e => { setSelectedProvince(e.target.value); setSelectedWard(''); setUnitError(''); }}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
-                                    <option value="">— Chọn tỉnh/thành phố —</option>
-                                    {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                </select>
-                            </div>
-
-                            {adminLevel === 'ward' && selectedProvince && (
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-gray-700">Chọn Xã/Phường</label>
-                                    {loadingUnits ? (
-                                        <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
-                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-                                            Đang tải...
-                                        </div>
-                                    ) : wards.length > 0 ? (
-                                        <select value={selectedWard} onChange={e => setSelectedWard(e.target.value)}
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
-                                            <option value="">— Chọn xã/phường —</option>
-                                            {wards.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                        </select>
-                                    ) : null}
+                            {loadingUnits && provinces.length === 0 ? (
+                                <div className="flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                                    Đang tải danh sách...
                                 </div>
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                                            Chọn Tỉnh/Thành phố
+                                        </label>
+                                        <select value={selectedProvince} onChange={e => { setSelectedProvince(e.target.value); setSelectedWard(''); setUnitError(''); }}
+                                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
+                                            <option value="">— Chọn tỉnh/thành phố —</option>
+                                            {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                        </select>
+                                    </div>
+
+                                    {needsWard && selectedProvince && (
+                                        <div>
+                                            <label className="mb-1 block text-sm font-medium text-gray-700">Chọn Xã/Phường</label>
+                                            {loadingUnits ? (
+                                                <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
+                                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                                                    Đang tải...
+                                                </div>
+                                            ) : wards.length > 0 ? (
+                                                <select value={selectedWard} onChange={e => setSelectedWard(e.target.value)}
+                                                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
+                                                    <option value="">— Chọn xã/phường —</option>
+                                                    {wards.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                                </select>
+                                            ) : null}
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </>
                     )}

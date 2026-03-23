@@ -15,6 +15,7 @@ export interface UserInfo {
   phone: string;
   avatarUrl: string;
   role: number;
+  contributorType: number | null;
   status: number;
   administrativeUnitId: string | null;
 }
