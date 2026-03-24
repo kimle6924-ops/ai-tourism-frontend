@@ -10,6 +10,7 @@ export interface RegisterRequest {
   fullName: string;
   phone: string;
   role: number;
+  contributorType?: number;
   administrativeUnitId?: string;
   categoryIds: string[];
 }

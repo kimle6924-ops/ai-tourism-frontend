@@ -4,6 +4,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { logout } from '../store/slice/LoginSlice';
+import { clearChatbot } from '../store/slice/ChatbotGeminiSlice';
 import { fetchProfileThunk, updateProfileThunk, resetProfile } from '../store/slice/ProfileSlice';
 import { fetchPreferencesThunk, updatePreferencesThunk } from '../store/slice/PreferencesSlice';
 import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
@@ -217,6 +218,7 @@ export function ProfileDropdown() {
   const handleLogout = () => {
     clearTokens();
     dispatch(logout());
+    dispatch(clearChatbot());
     dispatch(resetProfile());
     sessionStorage.removeItem('hasAskedLocationSession');
     setOpen(false);
