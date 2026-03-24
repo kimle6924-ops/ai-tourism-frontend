@@ -105,15 +105,15 @@ export function ContributorPage() {
     const handlePlacePageChange = (p: number) => dispatch(fetchAdminPlacesThunk({ page: p, size: 10 }));
     const handleOpenCreatePlace = () => { dispatch(setSelectedPlace(null)); setShowPlaceForm(true); };
     const handleOpenEditPlace = (place: PlaceItem) => { dispatch(setSelectedPlace(place)); setShowPlaceForm(true); };
-    const handlePlaceFormSubmit = async (data: CreatePlacePayload) => {
+    const handlePlaceFormSubmit = async (data: CreatePlacePayload): Promise<string | null> => {
         if (selectedPlace) {
             const res = await dispatch(updatePlaceThunk({ id: selectedPlace.id, payload: data }));
-            if (updatePlaceThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã cập nhật', 'success'); setShowPlaceForm(false); dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 })); }
-            else Swal.fire('Lỗi', res.payload as string, 'error');
+            if (updatePlaceThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã cập nhật', 'success'); setShowPlaceForm(false); dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 })); return selectedPlace.id; }
+            else { Swal.fire('Lỗi', res.payload as string, 'error'); return null; }
         } else {
             const res = await dispatch(createPlaceThunk(data));
-            if (createPlaceThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã tạo địa điểm', 'success'); setShowPlaceForm(false); dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 })); }
-            else Swal.fire('Lỗi', res.payload as string, 'error');
+            if (createPlaceThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã tạo địa điểm', 'success'); setShowPlaceForm(false); dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 })); return (res.payload as PlaceItem).id; }
+            else { Swal.fire('Lỗi', res.payload as string, 'error'); return null; }
         }
     };
     const handleDeletePlace = async (id: string, title: string) => {
@@ -125,15 +125,15 @@ export function ContributorPage() {
     const handleEventPageChange = (p: number) => dispatch(fetchAdminEventsThunk({ page: p, size: 10 }));
     const handleOpenCreateEvent = () => { dispatch(setSelectedEvent(null)); setShowEventForm(true); };
     const handleOpenEditEvent = (ev: EventItem) => { dispatch(setSelectedEvent(ev)); setShowEventForm(true); };
-    const handleEventFormSubmit = async (data: CreateEventPayload | UpdateEventPayload) => {
+    const handleEventFormSubmit = async (data: CreateEventPayload | UpdateEventPayload): Promise<string | null> => {
         if (selectedEvent) {
             const res = await dispatch(updateEventThunk({ id: selectedEvent.id, payload: data as UpdateEventPayload }));
-            if (updateEventThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã cập nhật', 'success'); setShowEventForm(false); dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 })); }
-            else Swal.fire('Lỗi', res.payload as string, 'error');
+            if (updateEventThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã cập nhật', 'success'); setShowEventForm(false); dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 })); return selectedEvent.id; }
+            else { Swal.fire('Lỗi', res.payload as string, 'error'); return null; }
         } else {
             const res = await dispatch(createEventThunk(data as CreateEventPayload));
-            if (createEventThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã tạo sự kiện', 'success'); setShowEventForm(false); dispatch(fetchAdminEventsThunk({ page: 1, size: 10 })); }
-            else Swal.fire('Lỗi', res.payload as string, 'error');
+            if (createEventThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã tạo sự kiện', 'success'); setShowEventForm(false); dispatch(fetchAdminEventsThunk({ page: 1, size: 10 })); return (res.payload as EventItem).id; }
+            else { Swal.fire('Lỗi', res.payload as string, 'error'); return null; }
         }
     };
     const handleDeleteEvent = async (id: string, title: string) => {

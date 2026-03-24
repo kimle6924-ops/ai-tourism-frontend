@@ -146,15 +146,17 @@ export function AdminPage() {
         setShowPlaceForm(true);
     };
 
-    const handlePlaceFormSubmit = async (data: CreatePlacePayload) => {
+    const handlePlaceFormSubmit = async (data: CreatePlacePayload): Promise<string | null> => {
         if (selectedPlace) {
             const res = await dispatch(updatePlaceThunk({ id: selectedPlace.id, payload: data }));
             if (updatePlaceThunk.fulfilled.match(res)) {
                 Swal.fire('Thành công', 'Đã cập nhật địa điểm', 'success');
                 setShowPlaceForm(false);
                 dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 }));
+                return selectedPlace.id;
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
+                return null;
             }
         } else {
             const res = await dispatch(createPlaceThunk(data));
@@ -162,8 +164,10 @@ export function AdminPage() {
                 Swal.fire('Thành công', 'Đã tạo địa điểm mới', 'success');
                 setShowPlaceForm(false);
                 dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 }));
+                return (res.payload as PlaceItem).id;
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
+                return null;
             }
         }
     };
@@ -196,15 +200,17 @@ export function AdminPage() {
         setShowEventForm(true);
     };
 
-    const handleEventFormSubmit = async (data: CreateEventPayload | UpdateEventPayload) => {
+    const handleEventFormSubmit = async (data: CreateEventPayload | UpdateEventPayload): Promise<string | null> => {
         if (selectedEvent) {
             const res = await dispatch(updateEventThunk({ id: selectedEvent.id, payload: data as UpdateEventPayload }));
             if (updateEventThunk.fulfilled.match(res)) {
                 Swal.fire('Thành công', 'Đã cập nhật sự kiện', 'success');
                 setShowEventForm(false);
                 dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 }));
+                return selectedEvent.id;
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
+                return null;
             }
         } else {
             const res = await dispatch(createEventThunk(data as CreateEventPayload));
@@ -212,8 +218,10 @@ export function AdminPage() {
                 Swal.fire('Thành công', 'Đã tạo sự kiện mới', 'success');
                 setShowEventForm(false);
                 dispatch(fetchAdminEventsThunk({ page: 1, size: 10 }));
+                return (res.payload as EventItem).id;
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
+                return null;
             }
         }
     };

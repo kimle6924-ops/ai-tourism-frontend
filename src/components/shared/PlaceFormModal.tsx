@@ -6,13 +6,14 @@ import type { PlaceItem, CreatePlacePayload } from '../../services/AdminPlaceSer
 import type { Category } from '../../services/CategoryService';
 import AdministrativeUnitService, { type AdministrativeUnit } from '../../services/AdministrativeUnitService';
 import Swal from 'sweetalert2';
-import { X, Upload, Star, Trash2, Image } from 'lucide-react';
+import { X, Upload, Star, Trash2, Image, Plus } from 'lucide-react';
 
 interface PlaceFormModalProps {
     place: PlaceItem | null;
     categories: Category[];
     onClose: () => void;
-    onSubmit: (data: CreatePlacePayload) => void;
+    /** Returns the created/updated resource ID on success, or null on failure */
+    onSubmit: (data: CreatePlacePayload) => Promise<string | null>;
     loading: boolean;
     accentColor?: 'blue' | 'emerald';
     forcedAdministrativeUnitId?: string | null;
@@ -32,6 +33,7 @@ export default function PlaceFormModal({
     const dispatch = useDispatch<AppDispatch>();
     const { mediaList, loading: mediaLoading, uploading, actionLoading } = useSelector((state: RootState) => state.media);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const pendingFileInputRef = useRef<HTMLInputElement>(null);
 
     const [title, setTitle] = useState(place?.title || '');
     const [description, setDescription] = useState(place?.description || '');
@@ -40,6 +42,11 @@ export default function PlaceFormModal({
     const [longitude, setLongitude] = useState<string>(place?.longitude?.toString() || '');
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(place?.categoryIds || []);
     const [tags, setTags] = useState(place?.tags?.join(', ') || '');
+
+    // Pending files for create mode (no ID yet)
+    const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+    const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [provinces, setProvinces] = useState<AdministrativeUnit[]>([]);
     const [wards, setWards] = useState<AdministrativeUnit[]>([]);
@@ -60,62 +67,45 @@ export default function PlaceFormModal({
         return () => { dispatch(clearMedia()); };
     }, [dispatch, isEdit, place?.id]);
 
+    // Cleanup pending previews on unmount
+    useEffect(() => {
+        return () => { pendingPreviews.forEach(url => URL.revokeObjectURL(url)); };
+    }, [pendingPreviews]);
+
     useEffect(() => {
         if (isForcedArea) return;
-
         const loadProvinces = async () => {
             const res = await AdministrativeUnitService.getByLevel(0);
             if (!res.success) return;
             setProvinces(res.data);
         };
-
         loadProvinces();
     }, [isForcedArea]);
 
     useEffect(() => {
         if (isForcedArea) return;
-        if (!selectedProvinceId) {
-            setWards([]);
-            setSelectedWardId('');
-            return;
-        }
-
+        if (!selectedProvinceId) { setWards([]); setSelectedWardId(''); return; }
         const loadWards = async () => {
             const res = await AdministrativeUnitService.getChildren(selectedProvinceId);
-            if (!res.success) {
-                setWards([]);
-                return;
-            }
+            if (!res.success) { setWards([]); return; }
             setWards(res.data.filter((u) => u.level === 1));
         };
-
         loadWards();
     }, [selectedProvinceId, isForcedArea]);
 
     useEffect(() => {
         if (isForcedArea || !place?.administrativeUnitId) return;
-
         const hydrateArea = async () => {
             const res = await AdministrativeUnitService.getById(place.administrativeUnitId);
             if (!res.success) return;
-
             const unit = res.data;
-            if (unit.level === 0) {
-                setSelectedProvinceId(unit.id);
-                setSelectedWardId('');
-                return;
-            }
-
-            if (unit.parentId) {
-                setSelectedProvinceId(unit.parentId);
-                setSelectedWardId(unit.id);
-            }
+            if (unit.level === 0) { setSelectedProvinceId(unit.id); setSelectedWardId(''); return; }
+            if (unit.parentId) { setSelectedProvinceId(unit.parentId); setSelectedWardId(unit.id); }
         };
-
         hydrateArea();
     }, [place?.administrativeUnitId, isForcedArea]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim() || !description.trim() || !address.trim()) {
             Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ các trường bắt buộc', 'warning');
@@ -131,7 +121,9 @@ export default function PlaceFormModal({
             return;
         }
 
-        onSubmit({
+        setIsSubmitting(true);
+
+        const resourceId = await onSubmit({
             title: title.trim(),
             description: description.trim(),
             address: address.trim(),
@@ -141,6 +133,15 @@ export default function PlaceFormModal({
             categoryIds: selectedCategoryIds,
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
         });
+
+        // Upload pending files after creation
+        if (resourceId && pendingFiles.length > 0) {
+            for (const file of pendingFiles) {
+                await dispatch(uploadMediaThunk({ file, resourceType: 0, resourceId }));
+            }
+        }
+
+        setIsSubmitting(false);
     };
 
     const toggleCategory = (id: string) => {
@@ -149,6 +150,40 @@ export default function PlaceFormModal({
         );
     };
 
+    // ── Pending files (create mode) ──
+    const handlePendingFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        const newFiles: File[] = [];
+        const newPreviews: string[] = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (!file.type.startsWith('image/')) {
+                Swal.fire('Lỗi', `"${file.name}" không phải file ảnh`, 'error');
+                continue;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                Swal.fire('Lỗi', `"${file.name}" vượt quá 10MB`, 'error');
+                continue;
+            }
+            newFiles.push(file);
+            newPreviews.push(URL.createObjectURL(file));
+        }
+
+        setPendingFiles(prev => [...prev, ...newFiles]);
+        setPendingPreviews(prev => [...prev, ...newPreviews]);
+        if (pendingFileInputRef.current) pendingFileInputRef.current.value = '';
+    };
+
+    const removePendingFile = (index: number) => {
+        URL.revokeObjectURL(pendingPreviews[index]);
+        setPendingFiles(prev => prev.filter((_, i) => i !== index));
+        setPendingPreviews(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // ── Edit mode image handlers ──
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!place) return;
         const files = e.target.files;
@@ -194,6 +229,7 @@ export default function PlaceFormModal({
     };
 
     const inputCls = `w-full rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 ${accent.focus}`;
+    const isBusy = loading || isSubmitting;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -226,29 +262,16 @@ export default function PlaceFormModal({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">Tỉnh/Thành phố *</label>
-                                <select
-                                    value={selectedProvinceId}
-                                    onChange={e => setSelectedProvinceId(e.target.value)}
-                                    className={inputCls}
-                                >
+                                <select value={selectedProvinceId} onChange={e => setSelectedProvinceId(e.target.value)} className={inputCls}>
                                     <option value="">Chọn tỉnh/thành</option>
-                                    {provinces.map((p) => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
+                                    {provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">Xã/Phường (tuỳ chọn)</label>
-                                <select
-                                    value={selectedWardId}
-                                    onChange={e => setSelectedWardId(e.target.value)}
-                                    className={inputCls}
-                                    disabled={!selectedProvinceId}
-                                >
+                                <select value={selectedWardId} onChange={e => setSelectedWardId(e.target.value)} className={inputCls} disabled={!selectedProvinceId}>
                                     <option value="">Không chọn (dùng UID tỉnh)</option>
-                                    {wards.map((w) => (
-                                        <option key={w.id} value={w.id}>{w.name}</option>
-                                    ))}
+                                    {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -281,19 +304,17 @@ export default function PlaceFormModal({
                         <input value={tags} onChange={e => setTags(e.target.value)} className={inputCls} placeholder="VD: biển, du lịch, gia đình" />
                     </div>
 
-                    {/* Inline Image Management */}
+                    {/* ── Image Section ── */}
                     <div>
                         <label className="mb-2 block text-sm font-medium text-gray-700">Hình ảnh</label>
+
                         {isEdit ? (
+                            /* ── EDIT MODE: live upload/manage ── */
                             <div className="rounded-lg border p-3 space-y-3">
                                 <div>
                                     <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleUpload} className="hidden" />
-                                    <button
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={uploading}
-                                        className="flex items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-600 transition disabled:opacity-50"
-                                    >
+                                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                                        className="flex items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-600 transition disabled:opacity-50">
                                         <Upload size={16} />
                                         {uploading ? 'Đang upload...' : 'Chọn ảnh để upload'}
                                     </button>
@@ -340,16 +361,49 @@ export default function PlaceFormModal({
                                 )}
                             </div>
                         ) : (
-                            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
-                                Lưu địa điểm trước, sau đó mở lại để thêm hình ảnh
+                            /* ── CREATE MODE: pick files, upload after save ── */
+                            <div className="rounded-lg border p-3 space-y-3">
+                                <div>
+                                    <input ref={pendingFileInputRef} type="file" accept="image/*" multiple onChange={handlePendingFiles} className="hidden" />
+                                    <button type="button" onClick={() => pendingFileInputRef.current?.click()}
+                                        className="flex items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-600 transition">
+                                        <Plus size={16} /> Chọn ảnh
+                                    </button>
+                                </div>
+
+                                {pendingFiles.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-6 text-gray-400">
+                                        <Image size={36} />
+                                        <p className="mt-1 text-xs">Chưa chọn hình ảnh nào</p>
+                                    </div>
+                                )}
+
+                                {pendingFiles.length > 0 && (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                        {pendingPreviews.map((url, idx) => (
+                                            <div key={idx} className="group relative rounded-lg overflow-hidden border-2 border-gray-200 hover:border-gray-300 transition">
+                                                <div className="aspect-square">
+                                                    <img src={url} alt="" className="h-full w-full object-cover" />
+                                                </div>
+                                                <button type="button" onClick={() => removePendingFile(idx)}
+                                                    className="absolute top-1 right-1 rounded-full bg-red-500 p-0.5 text-white opacity-0 group-hover:opacity-100 transition hover:bg-red-600">
+                                                    <X size={12} />
+                                                </button>
+                                                <div className="px-1.5 py-1 text-[10px] text-gray-500 truncate">
+                                                    {pendingFiles[idx].name}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
 
                     <div className="flex justify-end gap-3 pt-2">
                         <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Hủy</button>
-                        <button type="submit" disabled={loading} className={`rounded-lg ${accent.btn} px-6 py-2 text-sm font-medium text-white disabled:opacity-50 transition`}>
-                            {loading ? 'Đang xử lý...' : place ? 'Cập nhật' : 'Tạo mới'}
+                        <button type="submit" disabled={isBusy} className={`rounded-lg ${accent.btn} px-6 py-2 text-sm font-medium text-white disabled:opacity-50 transition`}>
+                            {isSubmitting ? 'Đang lưu & upload ảnh...' : loading ? 'Đang xử lý...' : place ? 'Cập nhật' : 'Tạo mới'}
                         </button>
                     </div>
                 </form>
