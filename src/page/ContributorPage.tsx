@@ -9,10 +9,9 @@ import type { PlaceItem, CreatePlacePayload } from '../services/AdminPlaceServic
 import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../services/AdminEventService';
 import type { ResourceType } from '../services/ModerationService';
 import CategoryService, { type Category } from '../services/CategoryService';
-import MediaManager from '../components/MediaManager';
 import Swal from 'sweetalert2';
 import AdministrativeUnitService, { type AdministrativeUnit } from '../services/AdministrativeUnitService';
-import { MapPin, Calendar, Star, Plus, Pencil, Trash2, ExternalLink, Clock, CheckCircle, XCircle, FileText, ImageIcon } from 'lucide-react';
+import { MapPin, Calendar, Star, Plus, Pencil, Trash2, Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { ModerationBadge, EventStatusBadge, ContributorTypeBadge } from '../components/shared/StatusBadges';
 import PlaceFormModal from '../components/shared/PlaceFormModal';
 import EventFormModal from '../components/shared/EventFormModal';
@@ -70,8 +69,6 @@ export function ContributorPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
-    const [mediaTarget, setMediaTarget] = useState<{ resourceType: ResourceType; resourceId: string; title: string } | null>(null);
-
     const isActionLoading = placeActionLoading || eventActionLoading || moderationActionLoading;
 
     // Build sidebar tabs based on role
@@ -287,9 +284,7 @@ export function ContributorPage() {
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-1">
                                                             <button onClick={() => handleOpenEditPlace(p)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa"><Pencil size={15} /></button>
-                                                            <button onClick={() => setMediaTarget({ resourceType: 0, resourceId: p.id, title: p.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Ảnh"><ImageIcon size={15} /></button>
                                                             <button onClick={() => handleDeletePlace(p.id, p.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa"><Trash2 size={15} /></button>
-                                                            <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem"><ExternalLink size={15} /></a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -330,9 +325,7 @@ export function ContributorPage() {
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-1">
                                                             <button onClick={() => handleOpenEditEvent(ev)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa"><Pencil size={15} /></button>
-                                                            <button onClick={() => setMediaTarget({ resourceType: 1, resourceId: ev.id, title: ev.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Ảnh"><ImageIcon size={15} /></button>
                                                             <button onClick={() => handleDeleteEvent(ev.id, ev.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa"><Trash2 size={15} /></button>
-                                                            <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem"><ExternalLink size={15} /></a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -377,7 +370,6 @@ export function ContributorPage() {
                                                                 <button onClick={() => handleApproveResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition"><CheckCircle size={14} /> Duyệt</button>
                                                                 <button onClick={() => handleRejectResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition"><XCircle size={14} /> Từ chối</button>
                                                                 <button onClick={() => handleViewLogs(0, p.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử"><FileText size={15} /></button>
-                                                                <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition"><ExternalLink size={15} /></a>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -394,7 +386,6 @@ export function ContributorPage() {
                                                                 <button onClick={() => handleApproveResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition"><CheckCircle size={14} /> Duyệt</button>
                                                                 <button onClick={() => handleRejectResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition"><XCircle size={14} /> Từ chối</button>
                                                                 <button onClick={() => handleViewLogs(1, ev.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử"><FileText size={15} /></button>
-                                                                <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition"><ExternalLink size={15} /></a>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -414,7 +405,6 @@ export function ContributorPage() {
             {/* Modals */}
             {showPlaceForm && <PlaceFormModal place={selectedPlace} categories={categories} onClose={() => setShowPlaceForm(false)} onSubmit={handlePlaceFormSubmit} loading={placeActionLoading} accentColor="emerald" forcedAdministrativeUnitId={forcedAreaId} forcedAdministrativeUnitLabel={forcedAreaLabel} />}
             {showEventForm && <EventFormModal event={selectedEvent} categories={categories} onClose={() => setShowEventForm(false)} onSubmit={handleEventFormSubmit} loading={eventActionLoading} accentColor="emerald" forcedAdministrativeUnitId={forcedAreaId} forcedAdministrativeUnitLabel={forcedAreaLabel} />}
-            {mediaTarget && <MediaManager resourceType={mediaTarget.resourceType} resourceId={mediaTarget.resourceId} resourceTitle={mediaTarget.title} onClose={() => setMediaTarget(null)} />}
             {showLogsModal && <LogsModal logs={logs} loading={logsLoading} onClose={() => { setShowLogsModal(false); dispatch(clearLogs()); }} />}
         </div>
     );

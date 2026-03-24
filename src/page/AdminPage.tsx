@@ -18,8 +18,7 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend
 } from 'recharts';
-import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, ExternalLink, X, Clock, CheckCircle, XCircle, FileText, Tag, ImageIcon, Eye, EyeOff } from 'lucide-react';
-import MediaManager from '../components/MediaManager';
+import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, X, Clock, CheckCircle, XCircle, FileText, Tag, Eye, EyeOff } from 'lucide-react';
 import { RoleBadge, UserStatusBadge, ModerationBadge, EventStatusBadge, ContributorTypeBadge, ReviewStatusBadge } from '../components/shared/StatusBadges';
 import PlaceFormModal from '../components/shared/PlaceFormModal';
 import EventFormModal from '../components/shared/EventFormModal';
@@ -63,8 +62,6 @@ export function AdminPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
-    const [mediaTarget, setMediaTarget] = useState<{ resourceType: ResourceType; resourceId: string; title: string } | null>(null);
-
     // Category form fields
     const [catName, setCatName] = useState('');
     const [catSlug, setCatSlug] = useState('');
@@ -614,9 +611,7 @@ export function AdminPage() {
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-1">
                                                             <button onClick={() => handleOpenEditPlace(p)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa"><Pencil size={15} /></button>
-                                                            <button onClick={() => setMediaTarget({ resourceType: 0, resourceId: p.id, title: p.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Quản lý ảnh"><ImageIcon size={15} /></button>
                                                             <button onClick={() => handleDeletePlace(p.id, p.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa"><Trash2 size={15} /></button>
-                                                            <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết"><ExternalLink size={15} /></a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -695,9 +690,7 @@ export function AdminPage() {
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-1">
                                                             <button onClick={() => handleOpenEditEvent(ev)} className="p-2 rounded hover:bg-blue-50 text-blue-600 transition" title="Sửa"><Pencil size={15} /></button>
-                                                            <button onClick={() => setMediaTarget({ resourceType: 1, resourceId: ev.id, title: ev.title })} className="p-2 rounded hover:bg-purple-50 text-purple-600 transition" title="Quản lý ảnh"><ImageIcon size={15} /></button>
                                                             <button onClick={() => handleDeleteEvent(ev.id, ev.title)} className="p-2 rounded hover:bg-red-50 text-red-600 transition" title="Xóa"><Trash2 size={15} /></button>
-                                                            <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết"><ExternalLink size={15} /></a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -766,7 +759,6 @@ export function AdminPage() {
                                                                         <button onClick={() => handleApproveResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt"><CheckCircle size={14} /> Duyệt</button>
                                                                         <button onClick={() => handleRejectResource(0, p.id, p.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Từ chối"><XCircle size={14} /> Từ chối</button>
                                                                         <button onClick={() => handleViewLogs(0, p.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử"><FileText size={15} /></button>
-                                                                        <a href={`/places/${p.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết"><ExternalLink size={15} /></a>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -817,7 +809,6 @@ export function AdminPage() {
                                                                         <button onClick={() => handleApproveResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt"><CheckCircle size={14} /> Duyệt</button>
                                                                         <button onClick={() => handleRejectResource(1, ev.id, ev.title)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Từ chối"><XCircle size={14} /> Từ chối</button>
                                                                         <button onClick={() => handleViewLogs(1, ev.id)} className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Lịch sử"><FileText size={15} /></button>
-                                                                        <a href={`/events/${ev.id}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded hover:bg-gray-100 text-gray-500 transition" title="Xem chi tiết"><ExternalLink size={15} /></a>
                                                                     </div>
                                                                 </td>
                                                             </tr>
@@ -1074,15 +1065,6 @@ export function AdminPage() {
                 />
             )}
 
-            {/* Media Manager Modal */}
-            {mediaTarget && (
-                <MediaManager
-                    resourceType={mediaTarget.resourceType}
-                    resourceId={mediaTarget.resourceId}
-                    resourceTitle={mediaTarget.title}
-                    onClose={() => setMediaTarget(null)}
-                />
-            )}
         </div>
     );
 }
