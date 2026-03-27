@@ -6,6 +6,7 @@ import { loginThunk } from '../store/slice/LoginSlice';
 import { registerThunk } from '../store/slice/RegisterSlice';
 import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
 import AdministrativeUnitService, { type AdministrativeUnit } from '../services/AdministrativeUnitService';
+import LocationAutocomplete from '../components/shared/LocationAutocomplete';
 import bannerImg from '../assets/images/banner.jpg';
 
 // ─────────────────────────────────────────────
@@ -80,9 +81,6 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
                     <label className="mb-1 block text-sm font-medium text-gray-600">Mật khẩu</label>
                     <input type="password" placeholder="Mật khẩu" value={password} onChange={(e) => setPassword(e.target.value)} required
                         className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-black outline-none transition focus:border-[#00008A] focus:ring-2 focus:ring-[#00008A]/20" />
-                    <div className="mt-1 flex justify-end">
-                        <button type="button" className="text-xs italic text-gray-400 hover:underline">Quên mật khẩu?</button>
-                    </div>
                 </div>
                 {error && <div className="rounded-lg bg-red-50 px-4 py-2 text-center text-sm text-red-500">{formatError(error)}</div>}
                 <button type="submit" disabled={loading} className="mt-2 rounded-xl bg-[#00008A] py-3 font-bold text-white transition hover:bg-[#0000aa] disabled:opacity-60">
@@ -292,11 +290,10 @@ function RoleSelectStep({
                                         setUnitError('');
                                         setError('');
                                     }}
-                                    className={`rounded-lg border-2 p-3 text-left transition text-sm ${
-                                        contributorType === opt.value
+                                    className={`rounded-lg border-2 p-3 text-left transition text-sm ${contributorType === opt.value
                                             ? 'border-emerald-500 bg-emerald-100 shadow-sm'
                                             : 'border-gray-200 hover:border-gray-300 bg-white'
-                                    }`}>
+                                        }`}>
                                     <div className="text-lg">{opt.icon}</div>
                                     <div className="font-semibold text-gray-800 text-xs mt-1">{opt.label}</div>
                                     <div className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</div>
@@ -319,11 +316,13 @@ function RoleSelectStep({
                                         <label className="mb-1 block text-sm font-medium text-gray-700">
                                             Chọn Tỉnh/Thành phố
                                         </label>
-                                        <select value={selectedProvince} onChange={e => { setSelectedProvince(e.target.value); setSelectedWard(''); setUnitError(''); }}
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
-                                            <option value="">— Chọn tỉnh/thành phố —</option>
-                                            {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                        </select>
+                                        <LocationAutocomplete
+                                            items={provinces}
+                                            value={selectedProvince}
+                                            onChange={(id) => { setSelectedProvince(id); setSelectedWard(''); setUnitError(''); }}
+                                            placeholder="Tìm tỉnh/thành phố..."
+                                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                        />
                                     </div>
 
                                     {needsWard && selectedProvince && (
@@ -335,11 +334,13 @@ function RoleSelectStep({
                                                     Đang tải...
                                                 </div>
                                             ) : wards.length > 0 ? (
-                                                <select value={selectedWard} onChange={e => setSelectedWard(e.target.value)}
-                                                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
-                                                    <option value="">— Chọn xã/phường —</option>
-                                                    {wards.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                                </select>
+                                                <LocationAutocomplete
+                                                    items={wards}
+                                                    value={selectedWard}
+                                                    onChange={setSelectedWard}
+                                                    placeholder="Tìm xã/phường..."
+                                                    className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-black outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                                />
                                             ) : null}
                                         </div>
                                     )}
@@ -448,11 +449,10 @@ function InterestsStep({ registerData }: { registerData: RegisterData }) {
                 <div className="mb-8 flex flex-wrap justify-center gap-3">
                     {categories.map((cat) => (
                         <button key={cat.id} type="button" onClick={() => toggle(cat.id)}
-                            className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105 ${
-                                selected.has(cat.id)
+                            className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105 ${selected.has(cat.id)
                                     ? 'border-[#00008A] bg-[#00008A] text-white shadow-md'
                                     : 'border-gray-300 bg-white text-gray-700 hover:border-[#00008A] hover:text-[#00008A]'
-                            }`}>
+                                }`}>
                             {TYPE_EMOJI[cat.type] ?? '📌'} {cat.name}
                         </button>
                     ))}

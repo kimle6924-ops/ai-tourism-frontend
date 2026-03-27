@@ -6,6 +6,7 @@ import type { PlaceItem, CreatePlacePayload } from '../../services/AdminPlaceSer
 import type { Category } from '../../services/CategoryService';
 import AdministrativeUnitService, { type AdministrativeUnit } from '../../services/AdministrativeUnitService';
 import Swal from 'sweetalert2';
+import LocationAutocomplete from './LocationAutocomplete';
 import { X, Upload, Star, Trash2, Image, Plus } from 'lucide-react';
 
 interface PlaceFormModalProps {
@@ -262,17 +263,24 @@ export default function PlaceFormModal({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">Tỉnh/Thành phố *</label>
-                                <select value={selectedProvinceId} onChange={e => setSelectedProvinceId(e.target.value)} className={inputCls}>
-                                    <option value="">Chọn tỉnh/thành</option>
-                                    {provinces.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                </select>
+                                <LocationAutocomplete
+                                    items={provinces}
+                                    value={selectedProvinceId}
+                                    onChange={(id) => { setSelectedProvinceId(id); setSelectedWardId(''); }}
+                                    placeholder="Tìm tỉnh/thành phố..."
+                                    className={inputCls}
+                                />
                             </div>
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">Xã/Phường (tuỳ chọn)</label>
-                                <select value={selectedWardId} onChange={e => setSelectedWardId(e.target.value)} className={inputCls} disabled={!selectedProvinceId}>
-                                    <option value="">Không chọn (dùng UID tỉnh)</option>
-                                    {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                </select>
+                                <LocationAutocomplete
+                                    items={wards}
+                                    value={selectedWardId}
+                                    onChange={setSelectedWardId}
+                                    placeholder={selectedProvinceId ? 'Tìm xã/phường...' : 'Chọn tỉnh trước'}
+                                    disabled={!selectedProvinceId}
+                                    className={inputCls}
+                                />
                             </div>
                         </div>
                     )}
