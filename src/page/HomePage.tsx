@@ -16,6 +16,7 @@ import type { Place } from '../services/PlacesServices';
 import Swal from 'sweetalert2';
 import { updateLocationThunk } from '../store/slice/LocationUserSlice';
 import { ChatbotWidget } from '../components/ChatbotWidget';
+import Footer from '../components/Footer';
 import bannerImg from '../assets/images/banner.jpg';
 import planeImg from '../assets/images/plane.png';
 import chatbotImg from '../assets/images/image_chatbot.png';
@@ -713,7 +714,7 @@ export function HomePage() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-8 h-20 w-full bg-[#00008A]"></footer>
+      <Footer />
 
       {/* Chatbot Widget — fixed bottom-right over all content */}
       <ChatbotWidget />

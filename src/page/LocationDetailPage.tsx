@@ -11,6 +11,7 @@ import bannerImg from '../assets/images/banner.jpg';
 import logoImg from '../assets/images/image_logo_vivu.png';
 import { fetchPlacesPage1Thunk } from '../store/slice/PlacesSlice';
 import { ChatbotWidget } from '../components/ChatbotWidget';
+import Footer from '../components/Footer';
 
 export function LocationDetailPage({ type, id, resourceType }: { type: 'places' | 'events', id: string, resourceType: number }) {
     const dispatch = useDispatch<AppDispatch>();
@@ -22,12 +23,14 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
 
     const [rating, setRating] = useState<number>(5);
     const [comment, setComment] = useState('');
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
 
     useEffect(() => {
         dispatch(fetchLocationDetailThunk({ id, type }));
         dispatch(fetchReviewsThunk({ resourceType, resourceId: id, page: 1 }));
         dispatch(fetchPlacesPage1Thunk());
+        setSelectedImage(null); // reset ảnh chọn khi đổi địa điểm
 
         return () => {
             dispatch(clearLocationDetail());
@@ -80,14 +83,12 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
         );
     }
 
-    const fallbackImage = detail.images?.[0]?.url || "https://images.unsplash.com/photo-1541432901042-2b8bd6f8892d?q=80&w=800";
-    const thumbnails = detail.images?.length && detail.images.length > 1 
-        ? detail.images.slice(1, 4).map((img: any) => img.url)
-        : [
-            "https://images.unsplash.com/photo-1603566234586-22a3d0628e35?q=80&w=400",
-            "https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=400",
-            "https://images.unsplash.com/photo-1504280741564-f20387431e67?q=80&w=400"
-        ];
+    const FALLBACK = "https://images.unsplash.com/photo-1541432901042-2b8bd6f8892d?q=80&w=800";
+    const allImages: string[] = detail.images?.length
+        ? detail.images.map((img: any) => img.url)
+        : [FALLBACK];
+    const mainImage = selectedImage ?? allImages[0];
+    const thumbCount = allImages.length;
 
     return (
         <div className="w-full bg-white font-['Inter'] min-h-screen flex flex-col">
@@ -120,16 +121,49 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                     <div className="lg:w-[55%] flex flex-col gap-6">
                         {/* Main Image */}
                         <div className="w-full h-80 sm:h-96 md:h-[450px] overflow-hidden rounded-3xl shadow-lg bg-gray-100 relative group">
-                            <img src={fallbackImage} alt={detail.title || (detail as any).name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                            <img
+                                src={mainImage}
+                                alt={detail.title || (detail as any).name}
+                                className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
+                            />
                         </div>
-                        {/* Thumbnails */}
-                        <div className="grid grid-cols-3 gap-4">
-                            {thumbnails.map((src, i) => (
-                                <div key={i} className="h-24 sm:h-32 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm hover:ring-2 ring-[#00008A]/50 transition-all">
-                                    <img src={src} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
-                                </div>
-                            ))}
-                        </div>
+
+                        {/* Thumbnails — center if ≤3, scroll if ≥4 */}
+                        {thumbCount <= 3 ? (
+                            <div
+                                className="flex gap-3 justify-center p-2"
+                            >
+                                {allImages.map((src, i) => (
+                                    <div
+                                        key={i}
+                                        onClick={() => setSelectedImage(src)}
+                                        className={`h-24 sm:h-28 w-24 sm:w-28 flex-shrink-0 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm transition-all duration-200 ${
+                                            mainImage === src
+                                                ? 'ring-2 ring-[#00008A] shadow-md brightness-110'
+                                                : 'hover:ring-2 hover:ring-[#00008A]/50'
+                                        }`}
+                                    >
+                                        <img src={src} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex gap-3 overflow-x-auto p-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                                {allImages.map((src, i) => (
+                                    <div
+                                        key={i}
+                                        onClick={() => setSelectedImage(src)}
+                                        className={`flex-shrink-0 h-24 sm:h-28 w-36 sm:w-40 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm transition-all duration-200 ${
+                                            mainImage === src
+                                                ? 'ring-2 ring-[#00008A] shadow-md brightness-110'
+                                                : 'hover:ring-2 hover:ring-[#00008A]/50'
+                                        }`}
+                                    >
+                                        <img src={src} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Description */}
                         <div className="rounded-3xl mt-4 border border-gray-100 shadow-sm p-6 sm:p-8">
@@ -272,7 +306,7 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
             </div>
 
             {/* Footer */}
-            <footer className="mt-8 h-20 w-full bg-[#00008A] flex-shrink-0"></footer>
+            <Footer />
             
             <ChatbotWidget />
         </div>
