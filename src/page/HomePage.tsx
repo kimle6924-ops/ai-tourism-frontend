@@ -208,6 +208,20 @@ export function ProfileDropdown() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Listen for forced logout event when refresh token expires
+  useEffect(() => {
+    const onForceLogout = () => {
+      dispatch(logout());
+      dispatch(clearChatbot());
+      dispatch(resetProfile());
+      sessionStorage.removeItem('hasAskedLocationSession');
+      setOpen(false);
+      navigate({ to: '/auth' });
+    };
+    window.addEventListener('auth:logout', onForceLogout);
+    return () => window.removeEventListener('auth:logout', onForceLogout);
+  }, [dispatch, navigate]);
+
   const handleProfileClick = () => {
     if (!isLoggedIn) {
       navigate({ to: '/auth' });

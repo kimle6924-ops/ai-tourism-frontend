@@ -74,6 +74,9 @@ axiosInstance.interceptors.request.use(
     if (token) {
       reqConfig.headers = reqConfig.headers ?? {};
       (reqConfig.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      console.log(`[Token] Request: ${reqConfig.method?.toUpperCase()} ${reqConfig.url} | accessToken: ...${token.slice(-8)}`);
+    } else {
+      console.log(`[Token] Request: ${reqConfig.method?.toUpperCase()} ${reqConfig.url} | (no token)`);
     }
     return reqConfig;
   },
@@ -106,9 +109,17 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const currentAccess = getAccessToken();
       const refreshToken = getRefreshToken();
 
+      console.group('[Token] 401 detected — attempting refresh');
+      console.log('  URL             :', originalRequest.url);
+      console.log('  accessToken now :', currentAccess ? `...${currentAccess.slice(-8)}` : 'null');
+      console.log('  refreshToken now:', refreshToken ? `...${refreshToken.slice(-8)}` : 'null');
+      console.groupEnd();
+
       if (!refreshToken) {
+        console.warn('[Token] No refresh token found → clearing tokens');
         clearTokens();
         return Promise.reject(error);
       }
@@ -139,16 +150,28 @@ axiosInstance.interceptors.response.use(
           expiresAt: data.data.expiresAt,
         };
 
+        console.group('[Token] Refresh SUCCESS');
+        console.log('  new accessToken :', `...${newTokens.accessToken.slice(-8)}`);
+        console.log('  new refreshToken:', `...${newTokens.refreshToken.slice(-8)}`);
+        console.log('  expiresAt       :', newTokens.expiresAt);
+        console.groupEnd();
+
         saveTokens(newTokens);
         axiosInstance.defaults.headers['Authorization'] = `Bearer ${newTokens.accessToken}`;
         originalRequest.headers['Authorization'] = `Bearer ${newTokens.accessToken}`;
 
         processQueue(null, newTokens.accessToken);
         return axiosInstance(originalRequest);
-      } catch (refreshError) {
-        // Refresh failed → force logout
+      } catch (refreshError: any) {
+        console.group('[Token] Refresh FAILED');
+        console.error('  status:', refreshError?.response?.status);
+        console.error('  body  :', refreshError?.response?.data);
+        console.groupEnd();
+        // Refresh failed → clear tokens and notify app to force logout
         clearTokens();
         processQueue(refreshError as AxiosError, null);
+        // Dispatch a global event so UI layers (Redux) can react
+        window.dispatchEvent(new Event('auth:logout'));
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
