@@ -95,9 +95,12 @@ const chatbotSlice = createSlice({
             .addCase(askChatbotThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload as string;
+                const isTimeout = typeof action.payload === 'string' && action.payload.includes('timeout');
                 state.messages.push({
                     role: 'bot',
-                    text: '⚠️ Xin lỗi, mình không thể kết nối lúc này. Vui lòng thử lại!',
+                    text: isTimeout
+                        ? '⏱️ AI đang xử lý mất nhiều thời gian quá. Vui lòng thử lại!'
+                        : '⚠️ Xin lỗi, mình không thể kết nối lúc này. Vui lòng thử lại!',
                 });
             });
     },
