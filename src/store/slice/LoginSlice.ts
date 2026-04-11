@@ -12,9 +12,12 @@ interface LoginState {
     error: string | null;
 }
 
+const storedTokens = getTokens();
+const storedUser = getUser();
+
 const initialState: LoginState = {
-    user: getUser(),
-    accessToken: getTokens()?.accessToken ?? null,
+    user: storedTokens?.accessToken ? storedUser : null,
+    accessToken: storedTokens?.accessToken ?? null,
     loading: false,
     error: null,
 };

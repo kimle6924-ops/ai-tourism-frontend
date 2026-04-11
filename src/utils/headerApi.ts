@@ -14,6 +14,7 @@ export interface AuthTokens {
 // Token helpers (localStorage)
 // ─────────────────────────────────────────────
 const TOKEN_KEY = 'auth_tokens';
+export const AUTH_CLEARED_EVENT = 'auth:cleared';
 
 export const saveTokens = (tokens: AuthTokens) => {
   localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
@@ -32,6 +33,9 @@ export const getTokens = (): AuthTokens | null => {
 export const clearTokens = () => {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_CLEARED_EVENT));
+  }
 };
 
 export const getAccessToken = (): string | null => getTokens()?.accessToken ?? null;
@@ -47,6 +51,10 @@ export const saveUser = (user: any) => {
 };
 
 export const getUser = (): any | null => {
+  if (!getAccessToken()) {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
   const raw = localStorage.getItem(USER_KEY);
   if (!raw) return null;
   try {
@@ -170,8 +178,6 @@ axiosInstance.interceptors.response.use(
         // Refresh failed → clear tokens and notify app to force logout
         clearTokens();
         processQueue(refreshError as AxiosError, null);
-        // Dispatch a global event so UI layers (Redux) can react
-        window.dispatchEvent(new Event('auth:logout'));
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
