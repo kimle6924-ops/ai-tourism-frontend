@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, LogOut, X, Pencil, Check, Star, ChevronDown } from 'lucide-react';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, Link } from '@tanstack/react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { fetchProfileThunk, updateProfileThunk } from '../store/slice/ProfileSlice';
@@ -8,7 +8,7 @@ import { fetchPreferencesThunk, updatePreferencesThunk } from '../store/slice/Pr
 import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
 import { clearTokens } from '../utils/headerApi';
 import { fetchPlacesPage2Thunk } from '../store/slice/PlacesSlice';
-import { fetchRecommendPlacesThunk } from '../store/slice/LocationRecommendSlice';
+import { fetchRecommendPlacesThunk, fetchRecommendMixThunk } from '../store/slice/LocationRecommendSlice';
 import { searchDiscoveryThunk, setDiscoveryType, setDiscoveryQuery, setDiscoveryRating } from '../store/slice/DiscoverySlice';
 import type { Place } from '../services/PlacesServices';
 import Swal from 'sweetalert2';
@@ -328,17 +328,25 @@ const PLACE_FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=400',
 ];
 
-export const DestinationCard = ({ place, index, type = 'places', resourceType = 0 }: { place: Place; index: number; type?: 'places' | 'events'; resourceType?: number }) => {
+export const DestinationCard = ({ place, index, type = 'places', resourceType = 0, ribbonTag }: { place: Place; index: number; type?: 'places' | 'events'; resourceType?: number; ribbonTag?: string }) => {
   const navigate = useNavigate();
   const imgUrl = place.images?.[0]?.url || PLACE_FALLBACK_IMAGES[index % PLACE_FALLBACK_IMAGES.length];
   const displayName = place.title || (place as any).name || "Chưa có tên";
-  
+
   return (
-    <div 
+    <div
       onClick={() => navigate({ to: `/${type}/${place.id}`, search: { resourceType } })}
       className="relative h-72 w-full overflow-hidden rounded-2xl shadow-lg md:h-80 group cursor-pointer"
     >
       <img src={imgUrl} alt={displayName} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+      {ribbonTag && (
+        <div className="absolute top-3 right-0 z-20">
+          <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white text-[10px] font-bold px-3 py-1 rounded-l-full shadow-lg transform translate-x-1 group-hover:translate-x-0 transition-transform duration-300 flex items-center gap-1">
+            <Star size={10} fill="currentColor" />
+            {ribbonTag}
+          </div>
+        </div>
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 left-0 p-4 w-full">
         <h3 className="text-base font-bold text-white drop-shadow-lg line-clamp-1">{displayName}</h3>
@@ -348,18 +356,18 @@ export const DestinationCard = ({ place, index, type = 'places', resourceType = 
             <Star
               key={star}
               size={12}
-              fill={star <= Math.round(place.averageRating) ? '#FFD700' : 'transparent'}
-              className={star <= Math.round(place.averageRating) ? 'text-[#FFD700]' : 'text-white/40'}
+              fill={star <= Math.round(place.averageRating || 0) ? '#FFD700' : 'transparent'}
+              className={star <= Math.round(place.averageRating || 0) ? 'text-[#FFD700]' : 'text-white/40'}
             />
           ))}
-          {place.averageRating > 0 && (
-            <span className="ml-1 text-[10px] text-yellow-300 font-semibold">{place.averageRating.toFixed(1)}</span>
+          {(place.averageRating || 0) > 0 && (
+            <span className="ml-1 text-[10px] text-yellow-300 font-semibold">{(place.averageRating || 0).toFixed(1)}</span>
           )}
         </div>
         <p className="mt-1 text-[11px] leading-snug text-gray-200 pr-2 line-clamp-2">{place.description}</p>
         <div className="mt-2 flex flex-wrap gap-1">
-          {place.tags.slice(0, 3).map(tag => (
-            <span key={tag} className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
+          {(place.tags || []).slice(0, 3).map((tag, idx) => (
+            <span key={`${tag}-${idx}`} className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
               #{tag}
             </span>
           ))}
@@ -378,15 +386,16 @@ export const SkeletonCard = () => (
 export function HomePage() {
   const dispatch = useDispatch<AppDispatch>();
   const { page2, loading2 } = useSelector((s: RootState) => s.places);
-  const { recommendPlaces, loadingPlaces } = useSelector((s: RootState) => s.locationRecommend);
+  const { recommendMix, loadingMix } = useSelector((s: RootState) => s.locationRecommend);
   const { items: discoveryItems, loading: discoveryLoading, isSearched, type: discoveryType, currentRating, currentQuery, currentPage, totalPages } = useSelector((s: RootState) => s.discovery);
-  
+
   const { profile } = useSelector((s: RootState) => s.profile);
   const loginUser = useSelector((s: RootState) => s.login.user);
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    dispatch(fetchRecommendMixThunk());
     dispatch(fetchRecommendPlacesThunk());
     dispatch(fetchPlacesPage2Thunk());
   }, [dispatch]);
@@ -397,7 +406,7 @@ export function HomePage() {
       const hasAskedLocation = sessionStorage.getItem('hasAskedLocationSession');
       if (!hasAskedLocation) {
         sessionStorage.setItem('hasAskedLocationSession', 'true');
-        
+
         // Kiểm tra quyền vị trí trước
         if (navigator.permissions && navigator.permissions.query) {
           navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
@@ -405,7 +414,7 @@ export function HomePage() {
               // Quyền đã bị từ chối trước đó, không làm phiền người dùng nữa
               return;
             }
-            
+
             // Hỏi để cập nhật lại vị trí hiện tại
             Swal.fire({
               title: 'Cập nhật vị trí?',
@@ -432,11 +441,11 @@ export function HomePage() {
                     dispatch(updateLocationThunk({ latitude: lat, longitude: lng }))
                       .unwrap()
                       .then(() => {
-                         Swal.fire('Thành công', 'Đã cập nhật vị trí mới nhất của bạn.', 'success');
-                         dispatch(fetchProfileThunk());
+                        Swal.fire('Thành công', 'Đã cập nhật vị trí mới nhất của bạn.', 'success');
+                        dispatch(fetchProfileThunk());
                       })
                       .catch((err) => {
-                         Swal.fire('Lỗi', typeof err === 'string' ? err : 'Không thể cập nhật vị trí', 'error');
+                        Swal.fire('Lỗi', typeof err === 'string' ? err : 'Không thể cập nhật vị trí', 'error');
                       });
                   },
                   (error) => {
@@ -485,66 +494,63 @@ export function HomePage() {
 
     let pages = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
-        for (let i = 1; i <= totalPages; i++) {
-            pages.push(i);
-        }
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
     } else {
-        if (currentPage <= 3) {
-            pages = [1, 2, 3, 4, 5, '...', totalPages];
-        } else if (currentPage >= totalPages - 2) {
-            pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-        } else {
-            pages = [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
-        }
+      if (currentPage <= 3) {
+        pages = [1, 2, 3, 4, 5, '...', totalPages];
+      } else if (currentPage >= totalPages - 2) {
+        pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+      } else {
+        pages = [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+      }
     }
 
     return (
-        <div className="col-span-full mt-8 flex justify-center items-center gap-2">
-            <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1 || discoveryLoading}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                currentPage === 1 || discoveryLoading
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-[#00008A] hover:bg-[#00008A] hover:text-white shadow-sm ring-1 ring-[#00008A]/20'
-                }`}
-            >
-                Trước
-            </button>
-            <div className="flex gap-1 items-center">
-                {pages.map((p, idx) => (
-                    p === '...' ? (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 font-bold">...</span>
-                    ) : (
-                        <button
-                            key={p}
-                            onClick={() => handlePageChange(p as number)}
-                            disabled={discoveryLoading || currentPage === p}
-                            className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
-                            currentPage === p
-                                ? 'bg-[#00008A] text-white shadow-md'
-                                : 'bg-white text-gray-700 hover:bg-[#00008A]/10 ring-1 ring-gray-200'
-                            }`}
-                        >
-                            {p}
-                        </button>
-                    )
-                ))}
-            </div>
-            <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages || discoveryLoading}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                currentPage === totalPages || discoveryLoading
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-[#00008A] hover:bg-[#00008A] hover:text-white shadow-sm ring-1 ring-[#00008A]/20'
-                }`}
-            >
-                Sau
-            </button>
+      <div className="col-span-full mt-8 flex justify-center items-center gap-2">
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1 || discoveryLoading}
+          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${currentPage === 1 || discoveryLoading
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-white text-[#00008A] hover:bg-[#00008A] hover:text-white shadow-sm ring-1 ring-[#00008A]/20'
+            }`}
+        >
+          Trước
+        </button>
+        <div className="flex gap-1 items-center">
+          {pages.map((p, idx) => (
+            p === '...' ? (
+              <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 font-bold">...</span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => handlePageChange(p as number)}
+                disabled={discoveryLoading || currentPage === p}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${currentPage === p
+                  ? 'bg-[#00008A] text-white shadow-md'
+                  : 'bg-white text-gray-700 hover:bg-[#00008A]/10 ring-1 ring-gray-200'
+                  }`}
+              >
+                {p}
+              </button>
+            )
+          ))}
         </div>
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages || discoveryLoading}
+          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${currentPage === totalPages || discoveryLoading
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-white text-[#00008A] hover:bg-[#00008A] hover:text-white shadow-sm ring-1 ring-[#00008A]/20'
+            }`}
+        >
+          Sau
+        </button>
+      </div>
     );
   };
 
@@ -564,13 +570,23 @@ export function HomePage() {
 
           {/* Header */}
           <header className="flex w-full items-center justify-between px-2 sm:px-8">
-            <div className="flex-1"></div>
-            {/* Logo */}
-            <div className="flex-1 flex justify-center">
-              <img src={logoImg} alt="vivu logo" className="h-40 object-contain drop-shadow-md" />
-            </div>
-            {/* User Icon */}
-            <div className="flex flex-1 justify-end">
+            {/* Left: Logo */}
+            <Link to="/" className="flex items-center">
+              <img
+                src={logoImg}
+                alt="vivu logo"
+                className="h-20 object-contain drop-shadow-md"
+              />
+            </Link>
+
+            {/* Right: Menu + User */}
+            <div className="flex items-center gap-6 font-bold text-[#002B6B]">
+              <Link to="/" className="cursor-pointer hover:text-blue-600">Trang chủ</Link>
+              <Link to="/tourism" className="cursor-pointer hover:text-blue-600">Du lịch</Link>
+              <Link to="/events" className="cursor-pointer hover:text-blue-600">Sự Kiện</Link>
+              <Link to="/ranks" className="cursor-pointer hover:text-blue-600">Xếp hạng</Link>
+
+              {/* User Icon */}
               <ProfileDropdown />
             </div>
           </header>
@@ -665,7 +681,7 @@ export function HomePage() {
                 {discoveryLoading ? (
                   Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
                 ) : discoveryItems.length > 0 ? (
-                  discoveryItems.map((place, i) => <DestinationCard key={place.id} place={place} index={i} type={discoveryType} resourceType={discoveryType === 'places' ? 0 : 1} />)
+                  discoveryItems.map((place, i) => <DestinationCard key={place.id || `discovery-${i}`} place={place} index={i} type={discoveryType} resourceType={discoveryType === 'places' ? 0 : 1} />)
                 ) : (
                   <div className="col-span-full py-12 text-center text-gray-500 font-medium">Không tìm thấy kết quả nào.</div>
                 )}
@@ -684,9 +700,38 @@ export function HomePage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-                {loadingPlaces
-                  ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-                  : recommendPlaces.slice(0, 8).map((place, i) => <DestinationCard key={place.id} place={place} index={i} type="places" resourceType={0} />)
+                {loadingMix
+                  ? Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)
+                  : recommendMix.slice(0, 12).map((item, i) => {
+                    const bestSellerTags = [
+                      "Đi ngay thôi",
+                      "Xách balo lên",
+                      "Đi liền kẻo lỡ",
+                      "Chốt lịch ngay",
+                      "Lên đường thôi"
+                    ];
+
+                    // Map RecommendMixItem to DestinationCard compatible structure
+                    const adaptedPlace: any = {
+                      id: item.resourceId,
+                      title: item.title,
+                      description: "",
+                      averageRating: item.averageRating,
+                      images: item.primaryImageUrl ? [{ url: item.primaryImageUrl }] : [],
+                      tags: []
+                    };
+
+                    return (
+                      <DestinationCard
+                        key={item.resourceId || `recommend-${i}`}
+                        place={adaptedPlace}
+                        index={i}
+                        type={item.resourceType === 1 ? 'events' : 'places'}
+                        resourceType={item.resourceType}
+                        ribbonTag={i < 5 ? bestSellerTags[i] : undefined}
+                      />
+                    );
+                  })
                 }
               </div>
             </section>

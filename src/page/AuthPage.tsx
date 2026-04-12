@@ -50,15 +50,19 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [failedAttempts, setFailedAttempts] = useState(0);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const result = await dispatch(loginThunk({ email, password }));
         if (loginThunk.fulfilled.match(result)) {
+            setFailedAttempts(0);
             const role = result.payload.user.role;
             if (role === 0) navigate({ to: '/admin' });
             else if (role === 1) navigate({ to: '/contributor' });
             else navigate({ to: '/' });
+        } else {
+            setFailedAttempts(prev => prev + 1);
         }
     };
 
@@ -83,6 +87,11 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
                         className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-black outline-none transition focus:border-[#00008A] focus:ring-2 focus:ring-[#00008A]/20" />
                 </div>
                 {error && <div className="rounded-lg bg-red-50 px-4 py-2 text-center text-sm text-red-500">{formatError(error)}</div>}
+                {failedAttempts >= 3 && (
+                    <div className="rounded-lg bg-amber-50 border border-amber-300 px-4 py-2 text-center text-sm text-amber-700">
+                        💬 Vui lòng liên hệ <span className="font-semibold">admin.tourism.vn</span> nếu quên mật khẩu
+                    </div>
+                )}
                 <button type="submit" disabled={loading} className="mt-2 rounded-xl bg-[#00008A] py-3 font-bold text-white transition hover:bg-[#0000aa] disabled:opacity-60">
                     {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                 </button>
@@ -291,8 +300,8 @@ function RoleSelectStep({
                                         setError('');
                                     }}
                                     className={`rounded-lg border-2 p-3 text-left transition text-sm ${contributorType === opt.value
-                                            ? 'border-emerald-500 bg-emerald-100 shadow-sm'
-                                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                                        ? 'border-emerald-500 bg-emerald-100 shadow-sm'
+                                        : 'border-gray-200 hover:border-gray-300 bg-white'
                                         }`}>
                                     <div className="text-lg">{opt.icon}</div>
                                     <div className="font-semibold text-gray-800 text-xs mt-1">{opt.label}</div>
@@ -450,8 +459,8 @@ function InterestsStep({ registerData }: { registerData: RegisterData }) {
                     {categories.map((cat) => (
                         <button key={cat.id} type="button" onClick={() => toggle(cat.id)}
                             className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105 ${selected.has(cat.id)
-                                    ? 'border-[#00008A] bg-[#00008A] text-white shadow-md'
-                                    : 'border-gray-300 bg-white text-gray-700 hover:border-[#00008A] hover:text-[#00008A]'
+                                ? 'border-[#00008A] bg-[#00008A] text-white shadow-md'
+                                : 'border-gray-300 bg-white text-gray-700 hover:border-[#00008A] hover:text-[#00008A]'
                                 }`}>
                             {TYPE_EMOJI[cat.type] ?? '📌'} {cat.name}
                         </button>

@@ -83,7 +83,7 @@ export function ChatbotWidget() {
       {/* Chat panel */}
       <div
         className={`fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-300 origin-bottom-right ${open
-          ? 'w-[360px] h-[520px] scale-100 opacity-100'
+          ? 'w-[420px] h-[600px] scale-100 opacity-100'
           : 'w-16 h-16 scale-0 opacity-0 pointer-events-none'
           }`}
         style={{ border: '1.5px solid #f0e9c5' }}

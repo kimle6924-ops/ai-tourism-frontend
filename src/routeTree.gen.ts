@@ -9,6 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TourismRouteImport } from './routes/tourism'
+import { Route as RanksRouteImport } from './routes/ranks'
+import { Route as EventsRouteImport } from './routes/events'
 import { Route as ContributorRouteImport } from './routes/contributor'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdministrativeUnitsRouteImport } from './routes/administrative-units'
@@ -18,6 +21,21 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlacesIdRouteImport } from './routes/places.$id'
 import { Route as EventsIdRouteImport } from './routes/events.$id'
 
+const TourismRoute = TourismRouteImport.update({
+  id: '/tourism',
+  path: '/tourism',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RanksRoute = RanksRouteImport.update({
+  id: '/ranks',
+  path: '/ranks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContributorRoute = ContributorRouteImport.update({
   id: '/contributor',
   path: '/contributor',
@@ -54,9 +72,9 @@ const PlacesIdRoute = PlacesIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsIdRoute = EventsIdRouteImport.update({
-  id: '/events/$id',
-  path: '/events/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => EventsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -66,6 +84,9 @@ export interface FileRoutesByFullPath {
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
+  '/events': typeof EventsRouteWithChildren
+  '/ranks': typeof RanksRoute
+  '/tourism': typeof TourismRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
 }
@@ -76,6 +97,9 @@ export interface FileRoutesByTo {
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
+  '/events': typeof EventsRouteWithChildren
+  '/ranks': typeof RanksRoute
+  '/tourism': typeof TourismRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
 }
@@ -87,6 +111,9 @@ export interface FileRoutesById {
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
+  '/events': typeof EventsRouteWithChildren
+  '/ranks': typeof RanksRoute
+  '/tourism': typeof TourismRoute
   '/events/$id': typeof EventsIdRoute
   '/places/$id': typeof PlacesIdRoute
 }
@@ -99,6 +126,9 @@ export interface FileRouteTypes {
     | '/administrative-units'
     | '/auth'
     | '/contributor'
+    | '/events'
+    | '/ranks'
+    | '/tourism'
     | '/events/$id'
     | '/places/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +139,9 @@ export interface FileRouteTypes {
     | '/administrative-units'
     | '/auth'
     | '/contributor'
+    | '/events'
+    | '/ranks'
+    | '/tourism'
     | '/events/$id'
     | '/places/$id'
   id:
@@ -119,6 +152,9 @@ export interface FileRouteTypes {
     | '/administrative-units'
     | '/auth'
     | '/contributor'
+    | '/events'
+    | '/ranks'
+    | '/tourism'
     | '/events/$id'
     | '/places/$id'
   fileRoutesById: FileRoutesById
@@ -130,12 +166,35 @@ export interface RootRouteChildren {
   AdministrativeUnitsRoute: typeof AdministrativeUnitsRoute
   AuthRoute: typeof AuthRoute
   ContributorRoute: typeof ContributorRoute
-  EventsIdRoute: typeof EventsIdRoute
+  EventsRoute: typeof EventsRouteWithChildren
+  RanksRoute: typeof RanksRoute
+  TourismRoute: typeof TourismRoute
   PlacesIdRoute: typeof PlacesIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tourism': {
+      id: '/tourism'
+      path: '/tourism'
+      fullPath: '/tourism'
+      preLoaderRoute: typeof TourismRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ranks': {
+      id: '/ranks'
+      path: '/ranks'
+      fullPath: '/ranks'
+      preLoaderRoute: typeof RanksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contributor': {
       id: '/contributor'
       path: '/contributor'
@@ -187,13 +246,24 @@ declare module '@tanstack/react-router' {
     }
     '/events/$id': {
       id: '/events/$id'
-      path: '/events/$id'
+      path: '/$id'
       fullPath: '/events/$id'
       preLoaderRoute: typeof EventsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof EventsRoute
     }
   }
 }
+
+interface EventsRouteChildren {
+  EventsIdRoute: typeof EventsIdRoute
+}
+
+const EventsRouteChildren: EventsRouteChildren = {
+  EventsIdRoute: EventsIdRoute,
+}
+
+const EventsRouteWithChildren =
+  EventsRoute._addFileChildren(EventsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -202,7 +272,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdministrativeUnitsRoute: AdministrativeUnitsRoute,
   AuthRoute: AuthRoute,
   ContributorRoute: ContributorRoute,
-  EventsIdRoute: EventsIdRoute,
+  EventsRoute: EventsRouteWithChildren,
+  RanksRoute: RanksRoute,
+  TourismRoute: TourismRoute,
   PlacesIdRoute: PlacesIdRoute,
 }
 export const routeTree = rootRouteImport
