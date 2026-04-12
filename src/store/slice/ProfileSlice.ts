@@ -47,9 +47,8 @@ export const updateProfileThunk = createAsyncThunk(
       if (!res.success) return rejectWithValue(res.error ?? 'Cập nhật thất bại');
       return res.data;
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        'Cập nhật thất bại';
+      const data = (err as any)?.response?.data;
+      const message = data?.errorCode || data?.error || 'Cập nhật thất bại';
       return rejectWithValue(message);
     }
   },

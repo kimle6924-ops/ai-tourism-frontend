@@ -19,6 +19,7 @@ import moderationReducer from './slice/ModerationSlice';
 import adminCategoriesReducer from './slice/AdminCategorySlice';
 import mediaReducer from './slice/MediaSlice';
 import adminReviewsReducer from './slice/AdminReviewSlice';
+import userReviewReducer from './slice/UserReviewSlice';
 
 export const store = configureStore({
   reducer: {
@@ -42,6 +43,7 @@ export const store = configureStore({
     adminCategories: adminCategoriesReducer,
     media: mediaReducer,
     adminReviews: adminReviewsReducer,
+    userReview: userReviewReducer,
   },
 });
 

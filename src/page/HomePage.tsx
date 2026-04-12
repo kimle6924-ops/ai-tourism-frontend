@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, LogOut, X, Pencil, Check, Star, ChevronDown } from 'lucide-react';
+import { Search, LogOut, X, Pencil, Check, Star, ChevronDown, Camera, Clock } from 'lucide-react';
 import { useNavigate, Link } from '@tanstack/react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { fetchProfileThunk, updateProfileThunk } from '../store/slice/ProfileSlice';
+import { fetchMyReviewHistoryThunk, clearUserReviews } from '../store/slice/UserReviewSlice';
 import { fetchPreferencesThunk, updatePreferencesThunk } from '../store/slice/PreferencesSlice';
 import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
 import { clearTokens } from '../utils/headerApi';
@@ -41,9 +42,11 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
   const { items: allCategories, loading: catLoading } = useSelector((s: RootState) => s.category);
 
   const [fullName, setFullName] = useState(profile?.fullName ?? '');
+  const [email, setEmail] = useState(profile?.email ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Load categories + preferences on open
   useEffect(() => {
@@ -67,10 +70,20 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
   };
 
   const handleSave = async () => {
+    setSaveError(null);
     const [profResult, prefResult] = await Promise.all([
-      dispatch(updateProfileThunk({ fullName, phone })),
+      dispatch(updateProfileThunk({ fullName, email, phone })),
       dispatch(updatePreferencesThunk(Array.from(selected))),
     ]);
+    if (updateProfileThunk.rejected.match(profResult)) {
+      const errPayload = profResult.payload as string;
+      if (errPayload?.includes('EMAIL_ALREADY_EXISTS') || errPayload?.includes('Email already exists')) {
+        setSaveError('Email này đã được sử dụng bởi tài khoản khác.');
+      } else {
+        setSaveError(errPayload ?? 'Cập nhật thất bại, vui lòng thử lại.');
+      }
+      return;
+    }
     if (updateProfileThunk.fulfilled.match(profResult) && updatePreferencesThunk.fulfilled.match(prefResult)) {
       setSaveSuccess(true);
       setTimeout(() => {
@@ -112,9 +125,11 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">Email</label>
                 <input
-                  value={profile?.email ?? ''}
-                  disabled
-                  className="w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5 text-sm text-gray-400 outline-none cursor-not-allowed"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setSaveError(null); }}
+                  type="email"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-800 outline-none transition focus:border-[#00008A] focus:ring-2 focus:ring-[#00008A]/20"
+                  placeholder="example@email.com"
                 />
               </div>
               <div>
@@ -157,6 +172,11 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
 
         {/* Footer */}
         <div className="sticky bottom-0 bg-white px-6 py-4 border-t border-gray-100">
+          {saveError && (
+            <p className="mb-3 rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600 font-medium">
+              ⚠️ {saveError}
+            </p>
+          )}
           <button
             onClick={handleSave}
             disabled={isLoading || saveSuccess}
@@ -180,6 +200,105 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
 }
 
 // ─────────────────────────────────────────────
+// Review History Modal
+// ─────────────────────────────────────────────
+function ReviewHistoryModal({ onClose }: { onClose: () => void }) {
+  const dispatch = useDispatch<AppDispatch>();
+  const { items, loading, error } = useSelector((s: RootState) => s.userReview);
+
+  useEffect(() => {
+    dispatch(fetchMyReviewHistoryThunk());
+    return () => { dispatch(clearUserReviews()); };
+  }, [dispatch]);
+
+  const renderStars = (rating: number) => (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(s => (
+        <Star
+          key={s}
+          size={12}
+          fill={s <= rating ? '#FFD700' : 'transparent'}
+          className={s <= rating ? 'text-[#FFD700]' : 'text-gray-300'}
+        />
+      ))}
+      <span className="ml-1 text-xs font-bold text-yellow-600">{rating}.0</span>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl bg-white shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Clock size={20} className="text-yellow-500" />
+            <h2 className="text-xl font-bold text-[#00008A]">Lịch sử đánh giá</h2>
+            {!loading && <span className="ml-1 text-xs font-medium bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{items.length} bài</span>}
+          </div>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 px-6 py-4">
+          {loading && (
+            <div className="flex justify-center py-12">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#00008A] border-t-transparent" />
+            </div>
+          )}
+          {!loading && error && (
+            <p className="text-center text-sm text-red-500 py-8">{error}</p>
+          )}
+          {!loading && !error && items.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <Star size={40} className="mb-3 opacity-30" />
+              <p className="text-sm font-medium">Bạn chưa có đánh giá nào.</p>
+            </div>
+          )}
+          {!loading && items.length > 0 && (
+            <div className="flex flex-col gap-4">
+              {items.map(item => (
+                <div key={item.id} className="flex gap-4 rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-shadow bg-white">
+                  {/* Resource thumbnail */}
+                  <div className="h-20 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                    {item.resourceImageUrl ? (
+                      <img src={item.resourceImageUrl} alt={item.resourceTitle} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-gray-300">
+                        <Star size={24} />
+                      </div>
+                    )}
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        {/* Type badge */}
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1 ${item.resourceType === 1 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                          {item.resourceType === 1 ? '🎊 Sự kiện' : '📍 Địa điểm'}
+                        </span>
+                        <h3 className="font-bold text-sm text-[#00008A] line-clamp-1">{item.resourceTitle}</h3>
+                        <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">{item.resourceAddress}</p>
+                      </div>
+                      <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                        {new Date(item.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <div className="mt-2">{renderStars(item.rating)}</div>
+                    <p className="mt-1.5 text-sm text-gray-700 line-clamp-2 italic">"{item.comment}"</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // Profile Dropdown
 // ─────────────────────────────────────────────
 export function ProfileDropdown() {
@@ -187,6 +306,7 @@ export function ProfileDropdown() {
   const dispatch = useDispatch<AppDispatch>();
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [reviewHistoryOpen, setReviewHistoryOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { profile, loading: profileLoading, error: profileError } = useSelector((s: RootState) => s.profile);
   const loginUser = useSelector((s: RootState) => s.login.user);
@@ -280,6 +400,13 @@ export function ProfileDropdown() {
                     Chỉnh sửa thông tin
                   </button>
                   <button
+                    onClick={() => { setOpen(false); setReviewHistoryOpen(true); }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-yellow-400 py-2.5 font-bold text-yellow-700 transition hover:bg-yellow-50 active:scale-95"
+                  >
+                    <Clock size={15} />
+                    Lịch sử đánh giá
+                  </button>
+                  <button
                     onClick={handleLogout}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00008A] py-2.5 font-bold text-white transition hover:bg-[#0000aa] active:scale-95"
                   >
@@ -307,8 +434,11 @@ export function ProfileDropdown() {
         )}
       </div>
 
-      {/* Edit modal — rendered outside dropdown to avoid clipping */}
+      {/* Edit modal */}
       {editOpen && <EditProfileModal onClose={() => setEditOpen(false)} />}
+
+      {/* Review History modal */}
+      {reviewHistoryOpen && <ReviewHistoryModal onClose={() => setReviewHistoryOpen(false)} />}
     </>
   );
 }

@@ -17,9 +17,9 @@ export interface UserProfile {
 }
 
 export interface UpdateProfileRequest {
+  email?: string;
   fullName?: string;
   phone?: string;
-  avatarUrl?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -32,7 +32,7 @@ const ProfileService = {
   },
 
   updateProfile: async (payload: UpdateProfileRequest): Promise<ApiResponse<UserProfile>> => {
-    const response = await axiosInstance.put<ApiResponse<UserProfile>>('/api/User/me', payload);
+    const response = await axiosInstance.put<ApiResponse<UserProfile>>('/api/User/me/account', payload);
     return response.data;
   },
 };
