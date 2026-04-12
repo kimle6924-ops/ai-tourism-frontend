@@ -9,7 +9,7 @@ import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
 import { clearTokens } from '../utils/headerApi';
 import { fetchPlacesPage2Thunk } from '../store/slice/PlacesSlice';
 import { fetchRecommendPlacesThunk, fetchRecommendMixThunk } from '../store/slice/LocationRecommendSlice';
-import { searchDiscoveryThunk, setDiscoveryType, setDiscoveryQuery, setDiscoveryRating } from '../store/slice/DiscoverySlice';
+import { searchDiscoveryThunk, setDiscoveryType, setDiscoveryQuery, setDiscoveryRating, resetDiscovery } from '../store/slice/DiscoverySlice';
 import type { Place } from '../services/PlacesServices';
 import Swal from 'sweetalert2';
 import { updateLocationThunk } from '../store/slice/LocationUserSlice';
@@ -400,6 +400,17 @@ export function HomePage() {
     dispatch(fetchPlacesPage2Thunk());
   }, [dispatch]);
 
+  // Reset discovery state khi VÀO (mount) và RỜI KHỎI (unmount) HomePage
+  // → luôn hiển thị home view đúng, không bị cache state search cũ
+  useEffect(() => {
+    dispatch(resetDiscovery());
+    dispatch(setDiscoveryQuery(''));
+    return () => {
+      dispatch(resetDiscovery());
+      dispatch(setDiscoveryQuery(''));
+    };
+  }, [dispatch]);
+
   // Handle location prompt
   useEffect(() => {
     if (loginUser && profile) {
@@ -466,7 +477,18 @@ export function HomePage() {
     }, 100);
   };
 
+  const handleGoHome = () => {
+    dispatch(resetDiscovery());
+    dispatch(setDiscoveryQuery(''));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSearchClick = () => {
+    if (!currentQuery.trim()) {
+      // Nếu query trống, reset về home view
+      handleGoHome();
+      return;
+    }
     dispatch(searchDiscoveryThunk({ type: discoveryType, search: currentQuery, rating: currentRating, page: 1 }));
     scrollToResults();
   };
@@ -571,17 +593,17 @@ export function HomePage() {
           {/* Header */}
           <header className="flex w-full items-center justify-between px-2 sm:px-8">
             {/* Left: Logo */}
-            <Link to="/" className="flex items-center">
+            <button onClick={handleGoHome} className="flex items-center">
               <img
                 src={logoImg}
                 alt="vivu logo"
                 className="h-20 object-contain drop-shadow-md"
               />
-            </Link>
+            </button>
 
             {/* Right: Menu + User */}
             <div className="flex items-center gap-6 font-bold text-[#002B6B]">
-              <Link to="/" className="cursor-pointer hover:text-blue-600">Trang chủ</Link>
+              <button onClick={handleGoHome} className="cursor-pointer hover:text-blue-600">Trang chủ</button>
               <Link to="/tourism" className="cursor-pointer hover:text-blue-600">Du lịch</Link>
               <Link to="/events" className="cursor-pointer hover:text-blue-600">Sự Kiện</Link>
               <Link to="/ranks" className="cursor-pointer hover:text-blue-600">Xếp hạng</Link>
