@@ -13,5 +13,6 @@ export const Route = createFileRoute('/places/$id')({
 function RouteComponent() {
   const { id } = Route.useParams()
   const { resourceType } = Route.useSearch()
-  return <LocationDetailPage type="places" id={id} resourceType={resourceType} />
+  const type = resourceType === 1 ? 'events' : 'places'
+  return <LocationDetailPage type={type} id={id} resourceType={resourceType} />
 }

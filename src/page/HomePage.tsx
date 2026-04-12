@@ -339,6 +339,12 @@ export const DestinationCard = ({ place, index, type = 'places', resourceType = 
       className="relative h-72 w-full overflow-hidden rounded-2xl shadow-lg md:h-80 group cursor-pointer"
     >
       <img src={imgUrl} alt={displayName} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+      {/* Resource type badge */}
+      <div className="absolute top-3 left-3 z-20">
+        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-md backdrop-blur-sm ${type === 'events' ? 'bg-orange-500/90 text-white' : 'bg-blue-600/90 text-white'}`}>
+          {resourceType === 1 ? '🎊 Sự kiện' : '📍 Địa điểm'}
+        </div>
+      </div>
       {ribbonTag && (
         <div className="absolute top-3 right-0 z-20">
           <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white text-[10px] font-bold px-3 py-1 rounded-l-full shadow-lg transform translate-x-1 group-hover:translate-x-0 transition-transform duration-300 flex items-center gap-1">
@@ -748,7 +754,7 @@ export function HomePage() {
                         key={item.resourceId || `recommend-${i}`}
                         place={adaptedPlace}
                         index={i}
-                        type={item.resourceType === 1 ? 'events' : 'places'}
+                        type="places"
                         resourceType={item.resourceType}
                         ribbonTag={i < 5 ? bestSellerTags[i] : undefined}
                       />
