@@ -20,6 +20,7 @@ import adminCategoriesReducer from './slice/AdminCategorySlice';
 import mediaReducer from './slice/MediaSlice';
 import adminReviewsReducer from './slice/AdminReviewSlice';
 import userReviewReducer from './slice/UserReviewSlice';
+import rankReducer from './slice/RankSlice';
 
 export const store = configureStore({
   reducer: {
@@ -44,6 +45,7 @@ export const store = configureStore({
     media: mediaReducer,
     adminReviews: adminReviewsReducer,
     userReview: userReviewReducer,
+    rank: rankReducer,
   },
 });
 

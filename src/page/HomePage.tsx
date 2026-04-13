@@ -3,7 +3,7 @@ import { Search, LogOut, X, Pencil, Check, Star, ChevronDown, Camera, Clock } fr
 import { useNavigate, Link } from '@tanstack/react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
-import { fetchProfileThunk, updateProfileThunk } from '../store/slice/ProfileSlice';
+import { fetchProfileThunk, updateProfileThunk, uploadAvatarThunk } from '../store/slice/ProfileSlice';
 import { fetchMyReviewHistoryThunk, clearUserReviews } from '../store/slice/UserReviewSlice';
 import { fetchPreferencesThunk, updatePreferencesThunk } from '../store/slice/PreferencesSlice';
 import { fetchCategoriesThunk } from '../store/slice/CategorySlice';
@@ -37,7 +37,7 @@ const TYPE_EMOJI: Record<string, string> = {
 // ─────────────────────────────────────────────
 function EditProfileModal({ onClose }: { onClose: () => void }) {
   const dispatch = useDispatch<AppDispatch>();
-  const { profile, updating } = useSelector((s: RootState) => s.profile);
+  const { profile, updating, uploadingAvatar } = useSelector((s: RootState) => s.profile);
   const { categoryIds: savedCatIds, loading: prefLoading } = useSelector((s: RootState) => s.preferences);
   const { items: allCategories, loading: catLoading } = useSelector((s: RootState) => s.category);
 
@@ -47,6 +47,10 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarSuccess, setAvatarSuccess] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load categories + preferences on open
   useEffect(() => {
@@ -93,6 +97,23 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarError(null);
+    setAvatarSuccess(false);
+    // Show preview immediately
+    setAvatarPreview(URL.createObjectURL(file));
+    const result = await dispatch(uploadAvatarThunk(file));
+    if (uploadAvatarThunk.fulfilled.match(result)) {
+      setAvatarSuccess(true);
+      setTimeout(() => setAvatarSuccess(false), 2500);
+    } else {
+      setAvatarError(result.payload as string ?? 'Upload avatar thất bại');
+      setAvatarPreview(null);
+    }
+  };
+
   const isLoading = catLoading || prefLoading || updating;
 
   return (
@@ -107,6 +128,56 @@ function EditProfileModal({ onClose }: { onClose: () => void }) {
           >
             <X size={16} />
           </button>
+        </div>
+
+        {/* Avatar Upload */}
+        <div className="px-6 pt-5 flex flex-col items-center gap-3">
+          <div className="relative group">
+            <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-[#00008A]/20 shadow-lg bg-purple-100 flex items-center justify-center">
+              {uploadingAvatar ? (
+                <div className="h-full w-full flex items-center justify-center bg-black/30">
+                  <div className="h-7 w-7 animate-spin rounded-full border-4 border-white border-t-transparent" />
+                </div>
+              ) : (avatarPreview ?? profile?.avatarUrl) ? (
+                <img
+                  src={avatarPreview ?? profile?.avatarUrl}
+                  alt="Avatar"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-3xl font-bold text-purple-600">
+                  {profile?.fullName?.charAt(0) ?? '?'}
+                </span>
+              )}
+            </div>
+            {/* Camera overlay */}
+            <button
+              type="button"
+              disabled={uploadingAvatar}
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-[#00008A] text-white shadow-md border-2 border-white transition hover:bg-blue-900 disabled:opacity-50"
+            >
+              <Camera size={14} />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
+          </div>
+          {avatarSuccess && (
+            <p className="text-xs font-bold text-green-600 flex items-center gap-1">
+              <Check size={12} /> Cập nhật ảnh đại diện thành công!
+            </p>
+          )}
+          {avatarError && (
+            <p className="text-xs font-bold text-red-500">⚠️ {avatarError}</p>
+          )}
+          {uploadingAvatar && (
+            <p className="text-xs text-gray-500">Đang tải ảnh lên...</p>
+          )}
         </div>
 
         <div className="px-6 py-5 flex flex-col gap-5">

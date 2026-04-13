@@ -10,6 +10,7 @@ interface ProfileState {
   profile: UserProfile | null;
   loading: boolean;
   updating: boolean;
+  uploadingAvatar: boolean;
   error: string | null;
 }
 
@@ -17,6 +18,7 @@ const initialState: ProfileState = {
   profile: null,
   loading: false,
   updating: false,
+  uploadingAvatar: false,
   error: null,
 };
 
@@ -50,6 +52,49 @@ export const updateProfileThunk = createAsyncThunk(
       const data = (err as any)?.response?.data;
       const message = data?.errorCode || data?.error || 'Cập nhật thất bại';
       return rejectWithValue(message);
+    }
+  },
+);
+
+export const uploadAvatarThunk = createAsyncThunk(
+  'profile/uploadAvatar',
+  async (file: File, { rejectWithValue }) => {
+    try {
+      // Step 1: Get upload signature from backend
+      const sigRes = await ProfileService.getAvatarUploadSignature();
+      if (!sigRes.success) return rejectWithValue(sigRes.error ?? 'Không thể lấy chữ ký upload');
+      const { signature, timestamp, apiKey, cloudName, folder } = sigRes.data;
+
+      // Step 2: Upload directly to Cloudinary
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('signature', signature);
+      formData.append('timestamp', String(timestamp));
+      formData.append('api_key', apiKey);
+      formData.append('folder', folder);
+
+      const cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: 'POST', body: formData }
+      );
+      if (!cloudRes.ok) {
+        const err = await cloudRes.json().catch(() => ({}));
+        return rejectWithValue(err?.error?.message ?? 'Upload Cloudinary thất bại');
+      }
+      const cloudData = await cloudRes.json();
+      const { public_id, url, secure_url } = cloudData;
+
+      // Step 3: Finalize with backend
+      const finalRes = await ProfileService.finalizeAvatarUpload({
+        publicId: public_id,
+        url,
+        secureUrl: secure_url,
+      });
+      if (!finalRes.success) return rejectWithValue(finalRes.error ?? 'Cập nhật avatar thất bại');
+      return finalRes.data;
+    } catch (err: unknown) {
+      const data = (err as any)?.response?.data;
+      return rejectWithValue(data?.error ?? 'Upload avatar thất bại');
     }
   },
 );
@@ -99,6 +144,22 @@ const profileSlice = createSlice({
       })
       .addCase(updateProfileThunk.rejected, (state, action) => {
         state.updating = false;
+        state.error = action.payload as string;
+      });
+
+    // uploadAvatar
+    builder
+      .addCase(uploadAvatarThunk.pending, (state) => {
+        state.uploadingAvatar = true;
+        state.error = null;
+      })
+      .addCase(uploadAvatarThunk.fulfilled, (state, action) => {
+        state.uploadingAvatar = false;
+        state.profile = action.payload;
+        saveUser(action.payload);
+      })
+      .addCase(uploadAvatarThunk.rejected, (state, action) => {
+        state.uploadingAvatar = false;
         state.error = action.payload as string;
       });
   },
