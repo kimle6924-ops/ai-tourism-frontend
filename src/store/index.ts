@@ -22,6 +22,8 @@ import adminReviewsReducer from './slice/AdminReviewSlice';
 import userReviewReducer from './slice/UserReviewSlice';
 import rankReducer from './slice/RankSlice';
 import eventReducer from './slice/EventSlice';
+import discoveryTagReducer from './slice/DiscoveryTagSlice';
+import tourismReducer from './slice/TourismSlice';
 
 export const store = configureStore({
   reducer: {
@@ -48,6 +50,8 @@ export const store = configureStore({
     userReview: userReviewReducer,
     rank: rankReducer,
     event: eventReducer,
+    discoveryTag: discoveryTagReducer,
+    tourism: tourismReducer,
   },
 });
 
