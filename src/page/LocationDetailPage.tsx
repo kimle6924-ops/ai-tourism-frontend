@@ -137,11 +137,10 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                                     <div
                                         key={i}
                                         onClick={() => setSelectedImage(src)}
-                                        className={`h-24 sm:h-28 w-24 sm:w-28 flex-shrink-0 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm transition-all duration-200 ${
-                                            mainImage === src
+                                        className={`h-24 sm:h-28 w-24 sm:w-28 flex-shrink-0 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm transition-all duration-200 ${mainImage === src
                                                 ? 'ring-2 ring-[#00008A] shadow-md brightness-110'
                                                 : 'hover:ring-2 hover:ring-[#00008A]/50'
-                                        }`}
+                                            }`}
                                     >
                                         <img src={src} className="w-full h-full object-cover" />
                                     </div>
@@ -153,11 +152,10 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                                     <div
                                         key={i}
                                         onClick={() => setSelectedImage(src)}
-                                        className={`flex-shrink-0 h-24 sm:h-28 w-36 sm:w-40 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm transition-all duration-200 ${
-                                            mainImage === src
+                                        className={`flex-shrink-0 h-24 sm:h-28 w-36 sm:w-40 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm transition-all duration-200 ${mainImage === src
                                                 ? 'ring-2 ring-[#00008A] shadow-md brightness-110'
                                                 : 'hover:ring-2 hover:ring-[#00008A]/50'
-                                        }`}
+                                            }`}
                                     >
                                         <img src={src} className="w-full h-full object-cover" />
                                     </div>
@@ -307,7 +305,7 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
 
             {/* Footer */}
             <Footer />
-            
+
             <ChatbotWidget />
         </div>
     );

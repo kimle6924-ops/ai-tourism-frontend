@@ -4,6 +4,7 @@ import type { AppDispatch, RootState } from '../store';
 import { fetchLeaderboardUsersThunk } from '../store/slice/RankSlice';
 import { Trophy, Star, TrendingUp, Info, Award, Image, MessageSquare, Loader2, AlertCircle } from 'lucide-react';
 import MainHeader from '../components/MainHeader';
+import bannerImg from '../assets/images/banner.jpg';
 import Footer from '../components/Footer';
 import { ChatbotWidget } from '../components/ChatbotWidget';
 
@@ -25,9 +26,20 @@ export default function RankPage() {
 
   return (
     <div className="min-h-screen bg-white font-['Inter']">
-      <MainHeader />
+      {/* Header Banner */}
+      <div
+        className="w-full h-32 relative shadow-md"
+        style={{
+          backgroundImage: `url(${bannerImg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 20%',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <MainHeader transparent={true} />
+      </div>
 
-      <main className="mx-auto max-w-7xl px-4 py-12 pt-32">
+      <main className="mx-auto max-w-7xl px-4 py-12">
         {/* Header Section */}
         <div className="mb-12 text-center">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-600 mb-6 shadow-sm">

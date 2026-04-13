@@ -4,6 +4,7 @@ import type { AppDispatch, RootState } from '../store';
 import { searchDiscoveryThunk, setDiscoveryType, setDiscoveryRating, setDiscoveryQuery } from '../store/slice/DiscoverySlice';
 import { ChevronDown, Search } from 'lucide-react';
 import MainHeader from '../components/MainHeader';
+import bannerImg from '../assets/images/banner.jpg';
 import Footer from '../components/Footer';
 import { DestinationCard, SkeletonCard } from '../components/DestinationCard';
 import { ChatbotWidget } from '../components/ChatbotWidget';
@@ -55,9 +56,20 @@ export default function TourismPage() {
 
   return (
     <div className="min-h-screen bg-white font-['Inter']">
-      <MainHeader />
-      
-      <main className="mx-auto max-w-7xl px-4 py-12 pt-32">
+      {/* Header Banner */}
+      <div
+          className="w-full h-32 relative shadow-md"
+          style={{
+              backgroundImage: `url(${bannerImg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 20%',
+              backgroundRepeat: 'no-repeat'
+          }}
+      >
+          <MainHeader transparent={true} />
+      </div>
+
+      <main className="mx-auto max-w-7xl px-4 py-12">
         {/* Title & Description */}
         <div className="mb-12 text-center">
             <img src={text2Img} alt="Du lịch" className="h-16 mx-auto mb-6 object-contain drop-shadow-md" />
