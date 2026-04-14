@@ -140,7 +140,7 @@ export function CommunityChatWidget() {
                                             <span className="text-[11px] font-semibold text-gray-600">{msg.userFullName}</span>
                                         </div>
                                         <div className={`relative rounded-2xl p-3 shadow-sm ${isMe
-                                            ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-tr-sm'
+                                            ? 'bg-gradient-to-br from-indigo-400 to-indigo-500 text-white rounded-tr-sm'
                                             : 'bg-white text-gray-800 rounded-tl-sm border border-gray-100'
                                             }`}>
                                             {msg.media.length > 0 && (
@@ -213,7 +213,7 @@ export function CommunityChatWidget() {
                         onChange={(event) => setInput(event.target.value)}
                         onKeyDown={(event) => event.key === 'Enter' && void handleSend()}
                         placeholder={user ? 'Chia sẻ khoảnh khắc...' : 'Đăng nhập để gửi tin nhắn'}
-                        className="flex-1 bg-gray-100 border border-transparent rounded-full px-4 py-2.5 text-sm focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400"
+                        className="flex-1 bg-gray-100 border border-transparent rounded-full px-4 py-2.5 text-sm text-gray-900 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder-gray-400"
                     />
 
                     <button
