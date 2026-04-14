@@ -46,6 +46,13 @@ export default function EventFormModal({
     const [startAt, setStartAt] = useState(event?.startAt ? event.startAt.slice(0, 16) : '');
     const [endAt, setEndAt] = useState(event?.endAt ? event.endAt.slice(0, 16) : '');
     const [eventStatus, setEventStatus] = useState<number>(event?.eventStatus ?? 0);
+    
+    // Recurrence fields
+    const [scheduleType, setScheduleType] = useState<number>(event?.scheduleType ?? 0);
+    const [startMonth, setStartMonth] = useState<string>(event?.startMonth?.toString() || '');
+    const [startDay, setStartDay] = useState<string>(event?.startDay?.toString() || '');
+    const [endMonth, setEndMonth] = useState<string>(event?.endMonth?.toString() || '');
+    const [endDay, setEndDay] = useState<string>(event?.endDay?.toString() || '');
 
     // Pending files for create mode
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -137,6 +144,11 @@ export default function EventFormModal({
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
             startAt: new Date(startAt).toISOString(),
             endAt: new Date(endAt).toISOString(),
+            scheduleType,
+            startMonth: scheduleType === 1 ? (startMonth ? parseInt(startMonth) : null) : null,
+            startDay: scheduleType > 0 ? (startDay ? parseInt(startDay) : null) : null,
+            endMonth: scheduleType === 1 ? (endMonth ? parseInt(endMonth) : null) : null,
+            endDay: scheduleType > 0 ? (endDay ? parseInt(endDay) : null) : null,
         };
 
         const payload = event ? { ...base, eventStatus } : base;
@@ -260,13 +272,58 @@ export default function EventFormModal({
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Bắt đầu *</label>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Lịch diễn ra *</label>
                             <input type="datetime-local" value={startAt} onChange={e => setStartAt(e.target.value)} className={inputCls} />
                         </div>
                         <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700">Kết thúc *</label>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Kết thúc dự kiến *</label>
                             <input type="datetime-local" value={endAt} onChange={e => setEndAt(e.target.value)} className={inputCls} />
                         </div>
+                    </div>
+
+                    {/* Recurrence Settings */}
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 space-y-4">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Tần suất lập lại</label>
+                            <select value={scheduleType} onChange={e => setScheduleType(Number(e.target.value))} className={inputCls}>
+                                <option value={0}>Một lần (Không lập lại)</option>
+                                <option value={1}>Hàng năm (Ví dụ: 15/8 hằng năm)</option>
+                                <option value={2}>Hàng tháng (Ví dụ: Mùng 1 & 15)</option>
+                            </select>
+                            {scheduleType !== 0 && <p className="mt-1 text-xs text-blue-600">Lưu ý: Hệ thống sẽ tự động tạo các lần diễn ra (occurrences) dựa trên quy luật này.</p>}
+                        </div>
+
+                        {scheduleType === 1 && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Bắt đầu từ</label>
+                                    <div className="flex gap-2">
+                                        <input type="number" min={1} max={31} placeholder="Ngày" value={startDay} onChange={e => setStartDay(e.target.value)} className={inputCls} />
+                                        <input type="number" min={1} max={12} placeholder="Tháng" value={startMonth} onChange={e => setStartMonth(e.target.value)} className={inputCls} />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Kết thúc đến</label>
+                                    <div className="flex gap-2">
+                                        <input type="number" min={1} max={31} placeholder="Ngày" value={endDay} onChange={e => setEndDay(e.target.value)} className={inputCls} />
+                                        <input type="number" min={1} max={12} placeholder="Tháng" value={endMonth} onChange={e => setEndMonth(e.target.value)} className={inputCls} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {scheduleType === 2 && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Ngày bắt đầu (trong tháng)</label>
+                                    <input type="number" min={1} max={31} placeholder="Ngày" value={startDay} onChange={e => setStartDay(e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">Ngày kết thúc (trong tháng)</label>
+                                    <input type="number" min={1} max={31} placeholder="Ngày" value={endDay} onChange={e => setEndDay(e.target.value)} className={inputCls} />
+                                </div>
+                            </div>
+                        )}
                     </div>
                     {event && (
                         <div>

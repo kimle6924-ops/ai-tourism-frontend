@@ -72,6 +72,31 @@ export function ContributorPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const isActionLoading = placeActionLoading || eventActionLoading || moderationActionLoading;
 
+    const renderEventTime = (ev: any) => {
+        if (ev.scheduleType === 1) {
+            return (
+                <div className="text-xs text-gray-600">
+                    <div className="font-semibold text-emerald-600 mb-0.5">Hàng năm</div>
+                    <div>{ev.startDay}/{ev.startMonth} → {ev.endDay}/{ev.endMonth}</div>
+                </div>
+            );
+        }
+        if (ev.scheduleType === 2) {
+            return (
+                <div className="text-xs text-gray-600">
+                    <div className="font-semibold text-emerald-600 mb-0.5">Hàng tháng</div>
+                    <div>Ngày {ev.startDay} → {ev.endDay}</div>
+                </div>
+            );
+        }
+        return (
+            <div className="text-xs text-gray-600">
+                <div className="flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> {formatDateTime(ev.startAt)}</div>
+                <div className="text-gray-400 mt-0.5 whitespace-nowrap">→ {formatDateTime(ev.endAt)}</div>
+            </div>
+        );
+    };
+
 
     // Build sidebar tabs based on role
     const sidebarTabs: { key: ContributorTab; label: string }[] = [
@@ -352,7 +377,9 @@ export function ContributorPage() {
                                                     <td className="px-4 py-3"><div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">{ev.images?.[0]?.url ? <img src={ev.images[0].url} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-gray-400"><Calendar size={16} /></div>}</div></td>
                                                     <td className="px-4 py-3 font-semibold text-gray-900 max-w-[180px] truncate">{ev.title}</td>
                                                     <td className="px-4 py-3 text-gray-500 max-w-[150px] truncate">{ev.address || '—'}</td>
-                                                    <td className="px-4 py-3 text-xs text-gray-600"><div className="flex items-center gap-1"><Clock size={12} /> {formatDateTime(ev.startAt)}</div><div className="text-gray-400 mt-0.5">→ {formatDateTime(ev.endAt)}</div></td>
+                                                    <td className="px-4 py-3">
+                                                        {renderEventTime(ev)}
+                                                    </td>
                                                     <td className="px-4 py-3"><EventStatusBadge status={ev.eventStatus} /></td>
                                                     <td className="px-4 py-3"><ModerationBadge status={ev.moderationStatus} /></td>
                                                     <td className="px-4 py-3"><div className="flex items-center gap-1"><Star size={14} className="text-yellow-500 fill-yellow-500" /><span className="text-sm font-medium">{ev.averageRating?.toFixed(1) || '—'}</span></div></td>
@@ -424,7 +451,9 @@ export function ContributorPage() {
                                                         <td className="px-4 py-3"><div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">{ev.images?.[0]?.url ? <img src={ev.images[0].url} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-gray-400"><Calendar size={16} /></div>}</div></td>
                                                         <td className="px-4 py-3 font-semibold text-gray-900">{ev.title}</td>
                                                         <td className="px-4 py-3 text-gray-500">{ev.address || '—'}</td>
-                                                        <td className="px-4 py-3 text-xs text-gray-600"><div className="flex items-center gap-1"><Clock size={12} /> {formatDateTime(ev.startAt)}</div><div className="text-gray-400">→ {formatDateTime(ev.endAt)}</div></td>
+                                                        <td className="px-4 py-3">
+                                                            {renderEventTime(ev)}
+                                                        </td>
                                                         <td className="px-4 py-3 text-xs text-gray-500">{new Date(ev.createdAt).toLocaleDateString('vi-VN')}</td>
                                                         <td className="px-4 py-3 text-right">
                                                             <div className="flex justify-end gap-1">

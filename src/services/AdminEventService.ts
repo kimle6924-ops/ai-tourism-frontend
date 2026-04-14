@@ -13,6 +13,11 @@ export interface EventItem {
     tags: string[];
     startAt: string;
     endAt: string;
+    scheduleType: number;
+    startMonth: number | null;
+    startDay: number | null;
+    endMonth: number | null;
+    endDay: number | null;
     eventStatus: number;
     moderationStatus: number;
     createdBy: string;
@@ -36,6 +41,11 @@ export interface CreateEventPayload {
     tags: string[];
     startAt: string;
     endAt: string;
+    scheduleType: number;
+    startMonth: number | null;
+    startDay: number | null;
+    endMonth: number | null;
+    endDay: number | null;
 }
 
 export interface UpdateEventPayload extends CreateEventPayload {

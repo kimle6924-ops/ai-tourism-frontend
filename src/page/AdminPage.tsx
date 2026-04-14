@@ -62,6 +62,31 @@ export function AdminPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
+
+    const renderEventTime = (ev: any) => {
+        if (ev.scheduleType === 1) {
+            return (
+                <div className="text-xs text-gray-600">
+                    <div className="font-semibold text-blue-600 mb-0.5">Hàng năm</div>
+                    <div>{ev.startDay}/{ev.startMonth} → {ev.endDay}/{ev.endMonth}</div>
+                </div>
+            );
+        }
+        if (ev.scheduleType === 2) {
+            return (
+                <div className="text-xs text-gray-600">
+                    <div className="font-semibold text-emerald-600 mb-0.5">Hàng tháng</div>
+                    <div>Ngày {ev.startDay} → {ev.endDay}</div>
+                </div>
+            );
+        }
+        return (
+            <div className="text-xs text-gray-600">
+                <div className="flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> {formatDateTime(ev.startAt)}</div>
+                <div className="text-gray-400 mt-0.5 whitespace-nowrap">→ {formatDateTime(ev.endAt)}</div>
+            </div>
+        );
+    };
     const [searchQuery, setSearchQuery] = useState('');
 
     // Category form fields
@@ -724,10 +749,7 @@ export function AdminPage() {
                                                         <div className="max-w-[150px] truncate text-gray-500">{ev.address || '—'}</div>
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <div className="text-xs text-gray-600">
-                                                            <div className="flex items-center gap-1"><Clock size={12} /> {formatDateTime(ev.startAt)}</div>
-                                                            <div className="text-gray-400 mt-0.5">→ {formatDateTime(ev.endAt)}</div>
-                                                        </div>
+                                                        {renderEventTime(ev)}
                                                     </td>
                                                     <td className="px-4 py-3"><EventStatusBadge status={ev.eventStatus} /></td>
                                                     <td className="px-4 py-3"><ModerationBadge status={ev.moderationStatus} /></td>
@@ -860,9 +882,8 @@ export function AdminPage() {
                                                                 </td>
                                                                 <td className="px-4 py-3 font-semibold text-gray-900 max-w-[180px] truncate">{ev.title}</td>
                                                                 <td className="px-4 py-3 text-gray-500 max-w-[150px] truncate">{ev.address || '—'}</td>
-                                                                <td className="px-4 py-3 text-xs text-gray-600">
-                                                                    <div className="flex items-center gap-1"><Clock size={12} /> {formatDateTime(ev.startAt)}</div>
-                                                                    <div className="text-gray-400 mt-0.5">→ {formatDateTime(ev.endAt)}</div>
+                                                                <td className="px-4 py-3">
+                                                                    {renderEventTime(ev)}
                                                                 </td>
                                                                 <td className="px-4 py-3 text-xs text-gray-500">{new Date(ev.createdAt).toLocaleDateString('vi-VN')}</td>
                                                                 <td className="px-4 py-3 text-right">
