@@ -50,6 +50,13 @@ const MediaService = {
         return response.data;
     },
 
+    getReviewSignature: async (): Promise<ApiResponse<UploadSignatureResponse>> => {
+        const response = await axiosInstance.post<ApiResponse<UploadSignatureResponse>>(
+            '/api/reviews/upload-signature'
+        );
+        return response.data;
+    },
+
     finalize: async (payload: FinalizeUploadPayload): Promise<ApiResponse<MediaAssetFull>> => {
         const response = await axiosInstance.post<ApiResponse<MediaAssetFull>>(
             '/api/media/finalize', payload

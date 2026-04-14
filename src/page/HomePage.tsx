@@ -911,7 +911,7 @@ export function HomePage() {
                 {discoveryLoading ? (
                   Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
                 ) : discoveryItems.length > 0 ? (
-                  discoveryItems.map((place, i) => <DestinationCard key={place.id || `discovery-${i}`} place={place} index={i} type={discoveryType} resourceType={discoveryType === 'places' ? 0 : 1} />)
+                  discoveryItems.map((place, i) => <DestinationCard key={place.id || `discovery-${i}`} place={place} index={i} type="places" resourceType={discoveryType === 'places' ? 0 : 1} />)
                 ) : (
                   <div className="col-span-full py-12 text-center text-gray-500 font-medium">Không tìm thấy kết quả nào.</div>
                 )}

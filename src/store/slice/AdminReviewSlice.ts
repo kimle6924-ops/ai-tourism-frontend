@@ -10,7 +10,7 @@ interface AdminReviewState {
     loading: boolean;
     actionLoading: boolean;
     error: string | null;
-    statusFilter: number | undefined; // undefined = all, 0 = Pending, 1 = Active, 2 = Hidden
+    statusFilter: number | undefined; // undefined = all, 0 = Active, 1 = Hidden
 }
 
 const initialState: AdminReviewState = {
@@ -63,6 +63,19 @@ export const hideReviewThunk = createAsyncThunk(
     }
 );
 
+export const deleteReviewThunk = createAsyncThunk(
+    'adminReviews/delete',
+    async (id: string, { rejectWithValue }) => {
+        try {
+            const res = await ReviewService.deleteReview(id);
+            if (!res.success) return rejectWithValue(res.error || 'Lỗi xóa đánh giá');
+            return id;
+        } catch (err: any) {
+            return rejectWithValue(err?.response?.data?.error || 'Lỗi server');
+        }
+    }
+);
+
 const adminReviewSlice = createSlice({
     name: 'adminReviews',
     initialState,
@@ -87,7 +100,7 @@ const adminReviewSlice = createSlice({
             .addCase(approveReviewThunk.fulfilled, (state, action: PayloadAction<string>) => {
                 state.actionLoading = false;
                 const review = state.reviews.find(r => r.id === action.payload);
-                if (review) review.status = 1; // Active
+                if (review) review.status = 0; // Active
             })
             .addCase(approveReviewThunk.rejected, (state) => { state.actionLoading = false; })
 
@@ -95,9 +108,16 @@ const adminReviewSlice = createSlice({
             .addCase(hideReviewThunk.fulfilled, (state, action: PayloadAction<string>) => {
                 state.actionLoading = false;
                 const review = state.reviews.find(r => r.id === action.payload);
-                if (review) review.status = 2; // Hidden
+                if (review) review.status = 1; // Hidden
             })
-            .addCase(hideReviewThunk.rejected, (state) => { state.actionLoading = false; });
+            .addCase(hideReviewThunk.rejected, (state) => { state.actionLoading = false; })
+
+            .addCase(deleteReviewThunk.pending, (state) => { state.actionLoading = true; })
+            .addCase(deleteReviewThunk.fulfilled, (state, action: PayloadAction<string>) => {
+                state.actionLoading = false;
+                state.reviews = state.reviews.filter(r => r.id !== action.payload);
+            })
+            .addCase(deleteReviewThunk.rejected, (state) => { state.actionLoading = false; });
     },
 });
 

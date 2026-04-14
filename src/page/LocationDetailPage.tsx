@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from '@tanstack/react-router';
-import { Star, Send, MapPin, User, ArrowLeft } from 'lucide-react';
+import { useRef } from 'react';
+import { Star, Send, MapPin, User, ArrowLeft, Camera, X } from 'lucide-react';
 import type { AppDispatch, RootState } from '../store';
 import { fetchLocationDetailThunk, clearLocationDetail } from '../store/slice/LocationDetaiSlice';
 import { fetchReviewsThunk, createReviewThunk, clearReviews } from '../store/slice/ReviewSlice';
@@ -12,6 +13,7 @@ import logoImg from '../assets/images/image_logo_vivu.png';
 import { fetchPlacesPage1Thunk } from '../store/slice/PlacesSlice';
 import { ChatbotWidget } from '../components/ChatbotWidget';
 import Footer from '../components/Footer';
+import MediaService from '../services/MediaService';
 
 export function LocationDetailPage({ type, id, resourceType }: { type: 'places' | 'events', id: string, resourceType: number }) {
     const dispatch = useDispatch<AppDispatch>();
@@ -24,6 +26,12 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
     const [rating, setRating] = useState<number>(5);
     const [comment, setComment] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+    // Review upload state
+    const [reviewImageFile, setReviewImageFile] = useState<File | null>(null);
+    const [reviewImagePreview, setReviewImagePreview] = useState<string | null>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
 
     useEffect(() => {
@@ -44,28 +52,65 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
         }
     };
 
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setReviewImageFile(file);
+            setReviewImagePreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleRemoveImage = () => {
+        setReviewImageFile(null);
+        if (reviewImagePreview) URL.revokeObjectURL(reviewImagePreview);
+        setReviewImagePreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
     const handleSubmitReview = async () => {
-        if (!comment.trim()) return;
         if (!authUser) {
             alert('Vui lòng đăng nhập để đánh giá!');
             return;
+        }
+
+        setIsUploadingImage(true);
+        let uploadedImageUrl = undefined;
+
+        if (reviewImageFile) {
+            try {
+                const sigRes = await MediaService.getReviewSignature();
+                if (sigRes.success) {
+                    const uploadRes = await MediaService.uploadToCloudinary(reviewImageFile, sigRes.data);
+                    uploadedImageUrl = uploadRes.secure_url;
+                } else {
+                    alert('Không thể lấy chữ ký upload ảnh.');
+                    setIsUploadingImage(false);
+                    return;
+                }
+            } catch (err) {
+                alert('Lỗi khi upload ảnh.');
+                setIsUploadingImage(false);
+                return;
+            }
         }
 
         const res = await dispatch(createReviewThunk({
             resourceType,
             resourceId: id,
             rating,
-            comment
+            comment,
+            imageUrl: uploadedImageUrl
         }));
 
         if (createReviewThunk.fulfilled.match(res)) {
             setComment('');
             setRating(5);
-            // Reload average rating after review is submitted
+            handleRemoveImage();
             dispatch(fetchLocationDetailThunk({ id, type }));
         } else {
             alert('Có lỗi xảy ra khi thêm đánh giá!');
         }
+        setIsUploadingImage(false);
     };
 
     if (detailLoading && !detail) {
@@ -138,8 +183,8 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                                         key={i}
                                         onClick={() => setSelectedImage(src)}
                                         className={`h-24 sm:h-28 w-24 sm:w-28 flex-shrink-0 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm transition-all duration-200 ${mainImage === src
-                                                ? 'ring-2 ring-[#00008A] shadow-md brightness-110'
-                                                : 'hover:ring-2 hover:ring-[#00008A]/50'
+                                            ? 'ring-2 ring-[#00008A] shadow-md brightness-110'
+                                            : 'hover:ring-2 hover:ring-[#00008A]/50'
                                             }`}
                                     >
                                         <img src={src} className="w-full h-full object-cover" />
@@ -153,8 +198,8 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                                         key={i}
                                         onClick={() => setSelectedImage(src)}
                                         className={`flex-shrink-0 h-24 sm:h-28 w-36 sm:w-40 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm transition-all duration-200 ${mainImage === src
-                                                ? 'ring-2 ring-[#00008A] shadow-md brightness-110'
-                                                : 'hover:ring-2 hover:ring-[#00008A]/50'
+                                            ? 'ring-2 ring-[#00008A] shadow-md brightness-110'
+                                            : 'hover:ring-2 hover:ring-[#00008A]/50'
                                             }`}
                                     >
                                         <img src={src} className="w-full h-full object-cover" />
@@ -218,21 +263,45 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                                     ))}
                                     <span className="ml-3 font-extrabold text-[#00008A] bg-yellow-100 px-2 py-0.5 rounded-md text-sm">{rating}.0 Sao</span>
                                 </div>
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    <input
-                                        type="text"
-                                        value={comment}
-                                        onChange={e => setComment(e.target.value)}
-                                        placeholder="Viết đánh giá"
-                                        className="flex-1 min-w-0 w-full bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 text-sm text-black font-medium placeholder-gray-600 focus:border-[#00008A] focus:ring-2 focus:ring-[#00008A]/20 focus:bg-white outline-none h-14 transition-all"
-                                    />
-                                    <button
-                                        onClick={handleSubmitReview}
-                                        disabled={posting || !comment.trim()}
-                                        className="bg-[#FFD700] text-[#00008A] font-extrabold px-6 rounded-xl hover:brightness-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm h-14 flex items-center justify-center gap-2 flex-shrink-0 whitespace-nowrap"
-                                    >
-                                        <Send size={18} /> <span>Gửi đánh giá</span>
-                                    </button>
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex flex-col sm:flex-row gap-3 items-end">
+                                        <div className="flex-1 w-full bg-gray-50 rounded-xl border border-gray-200 focus-within:border-[#00008A] focus-within:ring-2 focus-within:ring-[#00008A]/20 transition-all flex flex-col">
+                                            <textarea
+                                                value={comment}
+                                                onChange={e => setComment(e.target.value)}
+                                                placeholder="Viết đánh giá của bạn (tuỳ chọn)..."
+                                                className="w-full bg-transparent px-4 py-3 text-sm text-black font-medium placeholder-gray-500 outline-none resize-none min-h-[56px]"
+                                                rows={2}
+                                            />
+                                            {reviewImagePreview && (
+                                                <div className="px-4 pb-3 relative">
+                                                    <div className="relative inline-block mt-2">
+                                                        <img src={reviewImagePreview} alt="Preview" className="h-24 w-auto rounded-lg border border-gray-200" />
+                                                        <button onClick={handleRemoveImage} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition">
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center px-3 py-2 border-t border-gray-200">
+                                                <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageChange} />
+                                                <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-[#00008A] hover:bg-blue-50 rounded-lg transition" title="Đính kèm ảnh">
+                                                    <Camera size={20} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={handleSubmitReview}
+                                            disabled={posting || isUploadingImage}
+                                            className="bg-[#FFD700] text-[#00008A] font-extrabold px-6 rounded-xl hover:brightness-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm h-[56px] flex items-center justify-center gap-2 flex-shrink-0 whitespace-nowrap"
+                                        >
+                                            {isUploadingImage || posting ? (
+                                                <div className="w-5 h-5 border-2 border-[#00008A] border-t-white rounded-full animate-spin"></div>
+                                            ) : (
+                                                <><Send size={18} /> <span>Gửi</span></>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -266,9 +335,16 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                                             </div>
                                             <span className="ml-auto text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</span>
                                         </div>
-                                        <p className="text-[14px] text-gray-700 leading-relaxed ml-14">
-                                            {rev.comment}
-                                        </p>
+                                        {rev.comment && (
+                                            <p className="text-[14px] text-gray-700 leading-relaxed ml-14 mb-2">
+                                                {rev.comment}
+                                            </p>
+                                        )}
+                                        {rev.imageUrl && (
+                                            <div className="ml-14 mt-2 h-32 w-48 rounded-xl overflow-hidden border border-gray-200">
+                                                <img src={rev.imageUrl} alt="Review" className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
 

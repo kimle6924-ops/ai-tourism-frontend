@@ -9,6 +9,7 @@ export interface ReviewItem {
     userAvatarUrl?: string;
     rating: number;
     comment: string;
+    imageUrl?: string;
     status: number;
     createdAt: string;
     updatedAt: string;
@@ -36,6 +37,7 @@ export interface CreateReviewData {
     resourceId: string;
     rating: number;
     comment: string;
+    imageUrl?: string;
 }
 
 export interface AdminReviewListResponse {
@@ -75,6 +77,10 @@ const ReviewService = {
     },
     hideReview: async (id: string) => {
         const res = await axiosInstance.patch<{ success: boolean; error: string | null }>(`/api/reviews/${id}/hide`);
+        return res.data;
+    },
+    deleteReview: async (id: string) => {
+        const res = await axiosInstance.delete<{ success: boolean; error: string | null }>(`/api/reviews/${id}`);
         return res.data;
     },
 }

@@ -8,7 +8,7 @@ import { fetchAdminPlacesThunk, createPlaceThunk, updatePlaceThunk, deletePlaceT
 import { fetchAdminEventsThunk, createEventThunk, updateEventThunk, deleteEventThunk, setSelectedEvent } from '../store/slice/AdminEventSlice';
 import { fetchPendingPlacesThunk, fetchPendingEventsThunk, approveResourceThunk, rejectResourceThunk, fetchLogsThunk, clearLogs } from '../store/slice/ModerationSlice';
 import { fetchAdminCategoriesThunk, createCategoryThunk, updateCategoryThunk, deleteCategoryThunk } from '../store/slice/AdminCategorySlice';
-import { fetchAdminReviewsThunk, approveReviewThunk, hideReviewThunk, setReviewStatusFilter } from '../store/slice/AdminReviewSlice';
+import { fetchAdminReviewsThunk, approveReviewThunk, hideReviewThunk, deleteReviewThunk, setReviewStatusFilter } from '../store/slice/AdminReviewSlice';
 import type { PlaceItem, CreatePlacePayload } from '../services/AdminPlaceService';
 import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../services/AdminEventService';
 import type { ResourceType } from '../services/ModerationService';
@@ -106,7 +106,7 @@ export function AdminPage() {
     useEffect(() => {
         const delaySearch = setTimeout(() => {
             const isSearch = searchQuery.trim() !== '';
-            
+
             if (activeTab === 'users') {
                 dispatch(fetchAdminUsersThunk({ page: 1, size: isSearch ? 1000 : 10 }));
             } else if (activeTab === 'overview') {
@@ -371,19 +371,28 @@ export function AdminPage() {
     };
 
     const handleApproveReview = async (id: string) => {
-        const confirm = await Swal.fire({ title: 'Duyệt đánh giá?', text: 'Đánh giá sẽ hiển thị công khai.', icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', confirmButtonText: 'Duyệt', cancelButtonText: 'Hủy' });
+        const confirm = await Swal.fire({ title: 'Hiển thị đánh giá?', text: 'Đánh giá sẽ được hiển thị công khai.', icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', confirmButtonText: 'Hiển thị', cancelButtonText: 'Hủy' });
         if (confirm.isConfirmed) {
             const res = await dispatch(approveReviewThunk(id));
-            if (approveReviewThunk.fulfilled.match(res)) Swal.fire({ title: 'Đã duyệt', icon: 'success', timer: 1500, showConfirmButton: false });
+            if (approveReviewThunk.fulfilled.match(res)) Swal.fire({ title: 'Đã hiển thị', icon: 'success', timer: 1500, showConfirmButton: false });
             else Swal.fire('Lỗi', res.payload as string, 'error');
         }
     };
 
     const handleHideReview = async (id: string) => {
-        const confirm = await Swal.fire({ title: 'Ẩn đánh giá?', text: 'Đánh giá sẽ bị ẩn khỏi công khai.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ẩn', cancelButtonText: 'Hủy' });
+        const confirm = await Swal.fire({ title: 'Ẩn đánh giá?', text: 'Đánh giá sẽ bị ẩn khỏi công khai.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ffc107', confirmButtonText: 'Ẩn', cancelButtonText: 'Hủy' });
         if (confirm.isConfirmed) {
             const res = await dispatch(hideReviewThunk(id));
             if (hideReviewThunk.fulfilled.match(res)) Swal.fire({ title: 'Đã ẩn', icon: 'success', timer: 1500, showConfirmButton: false });
+            else Swal.fire('Lỗi', res.payload as string, 'error');
+        }
+    };
+
+    const handleDeleteReview = async (id: string) => {
+        const confirm = await Swal.fire({ title: 'Xóa đánh giá?', text: 'Hành động này không thể hoàn tác.', icon: 'error', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa', cancelButtonText: 'Hủy' });
+        if (confirm.isConfirmed) {
+            const res = await dispatch(deleteReviewThunk(id));
+            if (deleteReviewThunk.fulfilled.match(res)) Swal.fire({ title: 'Đã xóa', icon: 'success', timer: 1500, showConfirmButton: false });
             else Swal.fire('Lỗi', res.payload as string, 'error');
         }
     };
@@ -928,9 +937,8 @@ export function AdminPage() {
                             <div className="mb-4 flex gap-2 flex-shrink-0">
                                 {[
                                     { label: 'Tất cả', value: undefined },
-                                    { label: 'Chờ duyệt', value: 0 },
-                                    { label: 'Đã duyệt', value: 1 },
-                                    { label: 'Đã ẩn', value: 2 },
+                                    { label: 'Hiển thị', value: 0 },
+                                    { label: 'Đã ẩn', value: 1 },
                                 ].map(opt => (
                                     <button
                                         key={opt.label}
@@ -950,7 +958,7 @@ export function AdminPage() {
                                                 <th className="px-4 py-3 font-semibold">Người đánh giá</th>
                                                 <th className="px-4 py-3 font-semibold">Nội dung</th>
                                                 <th className="px-4 py-3 font-semibold">Điểm</th>
-                                                <th className="px-4 py-3 font-semibold">Trạng thái</th>
+                                                {/* <th className="px-4 py-3 font-semibold">Trạng thái</th> */}
                                                 <th className="px-4 py-3 font-semibold">Ngày tạo</th>
                                                 <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
                                             </tr>
@@ -982,20 +990,23 @@ export function AdminPage() {
                                                             <span className="font-medium">{review.rating}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3"><ReviewStatusBadge status={review.status} /></td>
+                                                    {/* <td className="px-4 py-3"><ReviewStatusBadge status={review.status} /></td> */}
                                                     <td className="px-4 py-3 text-xs text-gray-500">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-1">
-                                                            {review.status !== 1 && (
-                                                                <button onClick={() => handleApproveReview(review.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Duyệt">
-                                                                    <Eye size={14} /> Duyệt
+                                                            {review.status !== 0 && (
+                                                                <button onClick={() => handleApproveReview(review.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-green-50 text-green-600 hover:bg-green-100 transition" title="Hiển thị">
+                                                                    <Eye size={14} /> Hiển thị
                                                                 </button>
                                                             )}
-                                                            {review.status !== 2 && (
-                                                                <button onClick={() => handleHideReview(review.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Ẩn">
+                                                            {review.status !== 1 && (
+                                                                <button onClick={() => handleHideReview(review.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition" title="Ẩn">
                                                                     <EyeOff size={14} /> Ẩn
                                                                 </button>
                                                             )}
+                                                            <button onClick={() => handleDeleteReview(review.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded bg-red-50 text-red-600 hover:bg-red-100 transition" title="Xóa">
+                                                                <Trash2 size={14} /> Xóa
+                                                            </button>
                                                         </div>
                                                     </td>
                                                 </tr>
