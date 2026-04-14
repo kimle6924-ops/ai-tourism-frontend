@@ -815,6 +815,7 @@ export function HomePage() {
               <Link to="/tourism" className="cursor-pointer hover:text-blue-600">Du lịch</Link>
               <Link to="/events" className="cursor-pointer hover:text-blue-600">Sự Kiện</Link>
               <Link to="/ranks" className="cursor-pointer hover:text-blue-600">Xếp hạng</Link>
+              <Link to="/community" className="cursor-pointer hover:text-blue-600">Cộng đồng</Link>
 
               {/* User Icon */}
               <ProfileDropdown />

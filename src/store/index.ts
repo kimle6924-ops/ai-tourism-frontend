@@ -24,6 +24,7 @@ import rankReducer from './slice/RankSlice';
 import eventReducer from './slice/EventSlice';
 import discoveryTagReducer from './slice/DiscoveryTagSlice';
 import tourismReducer from './slice/TourismSlice';
+import communityReducer from './slice/CommunitySlice';
 
 export const store = configureStore({
   reducer: {
@@ -52,6 +53,7 @@ export const store = configureStore({
     event: eventReducer,
     discoveryTag: discoveryTagReducer,
     tourism: tourismReducer,
+    community: communityReducer,
   },
 });
 

@@ -25,6 +25,7 @@ export default function MainHeader({ transparent = false }: MainHeaderProps) {
           <Link to="/tourism" className="hover:text-blue-600 transition-colors">Du lịch</Link>
           <Link to="/events" className="hover:text-blue-600 transition-colors">Sự Kiện</Link>
           <Link to="/ranks" className="hover:text-blue-600 transition-colors">Xếp hạng</Link>
+          <Link to="/community" className="hover:text-blue-600 transition-colors">Cộng đồng</Link>
         </nav>
 
         {/* User Icon */}

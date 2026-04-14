@@ -13,6 +13,7 @@ import { Route as TourismRouteImport } from './routes/tourism'
 import { Route as RanksRouteImport } from './routes/ranks'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as ContributorRouteImport } from './routes/contributor'
+import { Route as CommunityRouteImport } from './routes/community'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdministrativeUnitsRouteImport } from './routes/administrative-units'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -39,6 +40,11 @@ const EventsRoute = EventsRouteImport.update({
 const ContributorRoute = ContributorRouteImport.update({
   id: '/contributor',
   path: '/contributor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityRoute = CommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
+  '/community': typeof CommunityRoute
   '/events': typeof EventsRouteWithChildren
   '/ranks': typeof RanksRoute
   '/tourism': typeof TourismRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
+  '/community': typeof CommunityRoute
   '/events': typeof EventsRouteWithChildren
   '/ranks': typeof RanksRoute
   '/tourism': typeof TourismRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/administrative-units': typeof AdministrativeUnitsRoute
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
+  '/community': typeof CommunityRoute
   '/events': typeof EventsRouteWithChildren
   '/ranks': typeof RanksRoute
   '/tourism': typeof TourismRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/administrative-units'
     | '/auth'
     | '/contributor'
+    | '/community'
     | '/events'
     | '/ranks'
     | '/tourism'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/administrative-units'
     | '/auth'
     | '/contributor'
+    | '/community'
     | '/events'
     | '/ranks'
     | '/tourism'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/administrative-units'
     | '/auth'
     | '/contributor'
+    | '/community'
     | '/events'
     | '/ranks'
     | '/tourism'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   AdministrativeUnitsRoute: typeof AdministrativeUnitsRoute
   AuthRoute: typeof AuthRoute
   ContributorRoute: typeof ContributorRoute
+  CommunityRoute: typeof CommunityRoute
   EventsRoute: typeof EventsRouteWithChildren
   RanksRoute: typeof RanksRoute
   TourismRoute: typeof TourismRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/contributor'
       fullPath: '/contributor'
       preLoaderRoute: typeof ContributorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community': {
+      id: '/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof CommunityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -272,6 +292,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdministrativeUnitsRoute: AdministrativeUnitsRoute,
   AuthRoute: AuthRoute,
   ContributorRoute: ContributorRoute,
+  CommunityRoute: CommunityRoute,
   EventsRoute: EventsRouteWithChildren,
   RanksRoute: RanksRoute,
   TourismRoute: TourismRoute,
