@@ -15,6 +15,7 @@ import type { Place } from '../services/PlacesServices';
 import Swal from 'sweetalert2';
 import { updateLocationThunk } from '../store/slice/LocationUserSlice';
 import { ChatbotWidget } from '../components/ChatbotWidget';
+import { CommunityChatWidget } from '../components/CommunityChatWidget';
 import Footer from '../components/Footer';
 import bannerImg from '../assets/images/banner.jpg';
 import planeImg from '../assets/images/plane.png';
@@ -1005,6 +1006,7 @@ export function HomePage() {
 
       {/* Chatbot Widget — fixed bottom-right over all content */}
       <ChatbotWidget />
+      <CommunityChatWidget />
     </div>
   );
 }

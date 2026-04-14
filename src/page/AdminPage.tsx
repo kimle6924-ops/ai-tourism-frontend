@@ -62,6 +62,8 @@ export function AdminPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+
     // Category form fields
     const [catName, setCatName] = useState('');
     const [catSlug, setCatSlug] = useState('');
@@ -70,37 +72,51 @@ export function AdminPage() {
 
     const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading || moderationActionLoading || categoryActionLoading || reviewActionLoading;
 
-    // Load data on tab change
+    // Reset search query on tab change
     useEffect(() => {
-        if (activeTab === 'users') {
-            dispatch(fetchAdminUsersThunk({ page: 1, size: 10 }));
-        } else if (activeTab === 'overview') {
-            dispatch(fetchOverviewStatsThunk({}));
-        } else if (activeTab === 'places') {
-            dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 }));
-            CategoryService.getCategories(1, 100).then(res => {
-                if (res.success) setCategories(res.data.items);
-            });
-        } else if (activeTab === 'events') {
-            dispatch(fetchAdminEventsThunk({ page: 1, size: 10 }));
-            if (categories.length === 0) {
-                CategoryService.getCategories(1, 100).then(res => {
-                    if (res.success) setCategories(res.data.items);
-                });
+        setSearchQuery('');
+    }, [activeTab]);
+
+    // Load data on tab/filter change or search
+    useEffect(() => {
+        const delaySearch = setTimeout(() => {
+            const isSearch = searchQuery.trim() !== '';
+            
+            if (activeTab === 'users') {
+                dispatch(fetchAdminUsersThunk({ page: 1, size: isSearch ? 1000 : 10 }));
+            } else if (activeTab === 'overview') {
+                if (!isSearch) dispatch(fetchOverviewStatsThunk({}));
+            } else if (activeTab === 'places') {
+                dispatch(fetchAdminPlacesThunk({ page: 1, size: isSearch ? 1000 : 10 }));
+                if (!isSearch && categories.length === 0) {
+                    CategoryService.getCategories(1, 100).then(res => {
+                        if (res.success) setCategories(res.data.items);
+                    });
+                }
+            } else if (activeTab === 'events') {
+                dispatch(fetchAdminEventsThunk({ page: 1, size: isSearch ? 1000 : 10 }));
+                if (!isSearch && categories.length === 0) {
+                    CategoryService.getCategories(1, 100).then(res => {
+                        if (res.success) setCategories(res.data.items);
+                    });
+                }
+            } else if (activeTab === 'moderation') {
+                dispatch(fetchPendingPlacesThunk({ page: 1, size: isSearch ? 1000 : 50 }));
+                dispatch(fetchPendingEventsThunk({ page: 1, size: isSearch ? 1000 : 50 }));
+            } else if (activeTab === 'categories') {
+                dispatch(fetchAdminCategoriesThunk({ page: 1, size: isSearch ? 1000 : 20 }));
+            } else if (activeTab === 'reviews') {
+                dispatch(fetchAdminReviewsThunk({ page: 1, size: isSearch ? 1000 : 10, status: reviewStatusFilter }));
             }
-        } else if (activeTab === 'moderation') {
-            dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
-            dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
-        } else if (activeTab === 'categories') {
-            dispatch(fetchAdminCategoriesThunk({ page: 1, size: 20 }));
-        } else if (activeTab === 'reviews') {
-            dispatch(fetchAdminReviewsThunk({ page: 1, size: 10, status: reviewStatusFilter }));
-        }
-    }, [activeTab, dispatch]);
+        }, 400);
+
+        return () => clearTimeout(delaySearch);
+    }, [activeTab, searchQuery, reviewStatusFilter, dispatch]);
+
 
     // ── User handlers ──
     const handleUserPageChange = (newPage: number) => {
-        dispatch(fetchAdminUsersThunk({ page: newPage, size: 10 }));
+        dispatch(fetchAdminUsersThunk({ page: newPage, size: searchQuery.trim() ? 1000 : 10 }));
     };
 
     const handleLock = async (id: string, currentStatus: number) => {
@@ -133,7 +149,7 @@ export function AdminPage() {
 
     // ── Place handlers ──
     const handlePlacePageChange = (newPage: number) => {
-        dispatch(fetchAdminPlacesThunk({ page: newPage, size: 10 }));
+        dispatch(fetchAdminPlacesThunk({ page: newPage, size: searchQuery.trim() ? 1000 : 10 }));
     };
 
     const handleOpenCreatePlace = () => {
@@ -187,7 +203,7 @@ export function AdminPage() {
 
     // ── Event handlers ──
     const handleEventPageChange = (newPage: number) => {
-        dispatch(fetchAdminEventsThunk({ page: newPage, size: 10 }));
+        dispatch(fetchAdminEventsThunk({ page: newPage, size: searchQuery.trim() ? 1000 : 10 }));
     };
 
     const handleOpenCreateEvent = () => {
@@ -241,7 +257,7 @@ export function AdminPage() {
 
     // ── Category handlers ──
     const handleCategoryPageChange = (newPage: number) => {
-        dispatch(fetchAdminCategoriesThunk({ page: newPage, size: 20 }));
+        dispatch(fetchAdminCategoriesThunk({ page: newPage, size: searchQuery.trim() ? 1000 : 20 }));
     };
 
     const handleOpenCreateCategory = () => {
@@ -321,7 +337,7 @@ export function AdminPage() {
 
     // ── Review handlers ──
     const handleReviewPageChange = (newPage: number) => {
-        dispatch(fetchAdminReviewsThunk({ page: newPage, size: 10, status: reviewStatusFilter }));
+        dispatch(fetchAdminReviewsThunk({ page: newPage, size: searchQuery.trim() ? 1000 : 10, status: reviewStatusFilter }));
     };
 
     const handleReviewStatusFilterChange = (status: number | undefined) => {
@@ -426,7 +442,6 @@ export function AdminPage() {
                                             { label: 'Địa điểm', value: stats.places.total, sub: `${stats.places.approved} đã được duyệt`, icon: <MapPin size={20} />, color: 'green' },
                                             { label: 'Sự kiện', value: stats.events.total, sub: `${stats.events.upcoming} sắp diễn ra`, icon: <Calendar size={20} />, color: 'purple' },
                                             { label: 'Đánh giá', value: stats.reviews.total, sub: `${stats.reviews.averageRating.toFixed(1)} sao TB`, icon: <Star size={20} />, color: 'yellow' },
-                                            { label: 'Tin nhắn Chat', value: stats.chat.totalMessages, sub: `${stats.chat.totalConversations} cuộc hội thoại`, icon: <MessageSquare size={20} />, color: 'teal' },
                                         ].map((card, i) => (
                                             <div key={i} className="rounded-xl border bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition cursor-pointer"
                                                 onClick={() => {
@@ -492,6 +507,15 @@ export function AdminPage() {
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex items-center justify-between flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800">Quản lý Người dùng</h1>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm người dùng..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
@@ -511,7 +535,7 @@ export function AdminPage() {
                                             {usersLoading && (
                                                 <tr><td colSpan={6} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
-                                            {!usersLoading && users.map((u) => (
+                                            {!usersLoading && users.filter(u => u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).map((u) => (
                                                 <tr key={u.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-3">
@@ -550,13 +574,13 @@ export function AdminPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!usersLoading && users.length === 0 && (
+                                            {!usersLoading && users.filter(u => u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                                                 <tr><td colSpan={6} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!usersLoading && <Pagination currentPage={userPageNumber} totalPages={userTotalPages} onPageChange={handleUserPageChange} />}
+                                {!usersLoading && searchQuery.trim() === '' && <Pagination currentPage={userPageNumber} totalPages={userTotalPages} onPageChange={handleUserPageChange} />}
                             </div>
                         </div>
                     )}
@@ -566,9 +590,18 @@ export function AdminPage() {
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex items-center justify-between flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800">Quản lý Địa điểm</h1>
-                                <button onClick={handleOpenCreatePlace} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
-                                    <Plus size={16} /> Thêm địa điểm
-                                </button>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm địa điểm..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+                                    />
+                                    <button onClick={handleOpenCreatePlace} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+                                        <Plus size={16} /> Thêm địa điểm
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
@@ -589,7 +622,7 @@ export function AdminPage() {
                                             {placesLoading && (
                                                 <tr><td colSpan={7} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
-                                            {!placesLoading && places.map((p) => (
+                                            {!placesLoading && places.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()))).map((p) => (
                                                 <tr key={p.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3">
                                                         <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
@@ -624,13 +657,13 @@ export function AdminPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!placesLoading && places.length === 0 && (
+                                            {!placesLoading && places.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
                                                 <tr><td colSpan={7} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!placesLoading && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
+                                {!placesLoading && searchQuery.trim() === '' && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
                             </div>
                         </div>
                     )}
@@ -640,9 +673,18 @@ export function AdminPage() {
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex items-center justify-between flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800">Quản lý Sự kiện</h1>
-                                <button onClick={handleOpenCreateEvent} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
-                                    <Plus size={16} /> Thêm sự kiện
-                                </button>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm sự kiện..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+                                    />
+                                    <button onClick={handleOpenCreateEvent} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+                                        <Plus size={16} /> Thêm sự kiện
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
@@ -664,7 +706,7 @@ export function AdminPage() {
                                             {eventsLoading && (
                                                 <tr><td colSpan={8} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
-                                            {!eventsLoading && events.map((ev) => (
+                                            {!eventsLoading && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.address && e.address.toLowerCase().includes(searchQuery.toLowerCase()))).map((ev) => (
                                                 <tr key={ev.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3">
                                                         <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
@@ -703,13 +745,13 @@ export function AdminPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!eventsLoading && events.length === 0 && (
+                                            {!eventsLoading && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.address && e.address.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
                                                 <tr><td colSpan={8} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!eventsLoading && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
+                                {!eventsLoading && searchQuery.trim() === '' && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
                             </div>
                         </div>
                     )}
@@ -717,15 +759,26 @@ export function AdminPage() {
                     {/* ════════════ MODERATION TAB ════════════ */}
                     {activeTab === 'moderation' && (
                         <div className="flex flex-col h-full">
-                            <div className="mb-6 flex-shrink-0">
-                                <h1 className="text-2xl font-bold text-gray-800 mb-4">Kiểm duyệt nội dung</h1>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setModerationSubTab('places')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'places' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                                        Địa điểm chờ duyệt ({placesTotalCount})
-                                    </button>
-                                    <button onClick={() => setModerationSubTab('events')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'events' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                                        Sự kiện chờ duyệt ({eventsTotalCount})
-                                    </button>
+                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800 mb-4">Kiểm duyệt nội dung</h1>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setModerationSubTab('places')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'places' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                                            Địa điểm chờ duyệt ({placesTotalCount})
+                                        </button>
+                                        <button onClick={() => setModerationSubTab('events')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'events' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                                            Sự kiện chờ duyệt ({eventsTotalCount})
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm nội dung..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+                                    />
                                 </div>
                             </div>
 
@@ -748,7 +801,7 @@ export function AdminPage() {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y text-gray-800">
-                                                        {pendingPlaces.map((p) => (
+                                                        {pendingPlaces.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).map((p) => (
                                                             <tr key={p.id} className="hover:bg-gray-50 transition">
                                                                 <td className="px-4 py-3">
                                                                     <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">
@@ -771,7 +824,7 @@ export function AdminPage() {
                                                                 </td>
                                                             </tr>
                                                         ))}
-                                                        {pendingPlaces.length === 0 && (
+                                                        {pendingPlaces.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                                                             <tr><td colSpan={5} className="py-10 text-center text-gray-500">Không có địa điểm nào chờ duyệt.</td></tr>
                                                         )}
                                                     </tbody>
@@ -794,7 +847,7 @@ export function AdminPage() {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y text-gray-800">
-                                                        {pendingEvents.map((ev) => (
+                                                        {pendingEvents.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase())).map((ev) => (
                                                             <tr key={ev.id} className="hover:bg-gray-50 transition">
                                                                 <td className="px-4 py-3">
                                                                     <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">
@@ -821,7 +874,7 @@ export function AdminPage() {
                                                                 </td>
                                                             </tr>
                                                         ))}
-                                                        {pendingEvents.length === 0 && (
+                                                        {pendingEvents.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                                                             <tr><td colSpan={6} className="py-10 text-center text-gray-500">Không có sự kiện nào chờ duyệt.</td></tr>
                                                         )}
                                                     </tbody>
@@ -839,6 +892,15 @@ export function AdminPage() {
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex items-center justify-between flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800">Quản lý Đánh giá</h1>
+                                <div className="flex items-center">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm đánh giá..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+                                    />
+                                </div>
                             </div>
 
                             {/* Status filter */}
@@ -876,7 +938,7 @@ export function AdminPage() {
                                             {reviewsLoading && (
                                                 <tr><td colSpan={6} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
-                                            {!reviewsLoading && adminReviews.map((review) => (
+                                            {!reviewsLoading && adminReviews.filter(r => (r.userFullName && r.userFullName.toLowerCase().includes(searchQuery.toLowerCase())) || r.comment.toLowerCase().includes(searchQuery.toLowerCase())).map((review) => (
                                                 <tr key={review.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-2">
@@ -917,13 +979,13 @@ export function AdminPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!reviewsLoading && adminReviews.length === 0 && (
+                                            {!reviewsLoading && adminReviews.filter(r => (r.userFullName && r.userFullName.toLowerCase().includes(searchQuery.toLowerCase())) || r.comment.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                                                 <tr><td colSpan={6} className="py-10 text-center text-gray-500">Không có đánh giá nào.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!reviewsLoading && <Pagination currentPage={reviewsPageNumber} totalPages={reviewsTotalPages} onPageChange={handleReviewPageChange} />}
+                                {!reviewsLoading && searchQuery.trim() === '' && <Pagination currentPage={reviewsPageNumber} totalPages={reviewsTotalPages} onPageChange={handleReviewPageChange} />}
                             </div>
                         </div>
                     )}
@@ -933,9 +995,18 @@ export function AdminPage() {
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex items-center justify-between flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800">Quản lý Danh mục</h1>
-                                <button onClick={handleOpenCreateCategory} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
-                                    <Plus size={16} /> Thêm danh mục
-                                </button>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm danh mục..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+                                    />
+                                    <button onClick={handleOpenCreateCategory} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+                                        <Plus size={16} /> Thêm danh mục
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
@@ -954,7 +1025,7 @@ export function AdminPage() {
                                             {categoriesLoading && (
                                                 <tr><td colSpan={5} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
-                                            {!categoriesLoading && adminCategoryList.map((cat) => (
+                                            {!categoriesLoading && adminCategoryList.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.slug.toLowerCase().includes(searchQuery.toLowerCase())).map((cat) => (
                                                 <tr key={cat.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-2">
@@ -980,13 +1051,13 @@ export function AdminPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!categoriesLoading && adminCategoryList.length === 0 && (
+                                            {!categoriesLoading && adminCategoryList.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.slug.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                                                 <tr><td colSpan={5} className="py-10 text-center text-gray-500">Không có danh mục.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!categoriesLoading && <Pagination currentPage={categoriesPageNumber} totalPages={categoriesTotalPages} onPageChange={handleCategoryPageChange} />}
+                                {!categoriesLoading && searchQuery.trim() === '' && <Pagination currentPage={categoriesPageNumber} totalPages={categoriesTotalPages} onPageChange={handleCategoryPageChange} />}
                             </div>
                         </div>
                     )}

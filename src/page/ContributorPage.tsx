@@ -69,7 +69,9 @@ export function ContributorPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const isActionLoading = placeActionLoading || eventActionLoading || moderationActionLoading;
+
 
     // Build sidebar tabs based on role
     const sidebarTabs: { key: ContributorTab; label: string }[] = [
@@ -80,29 +82,43 @@ export function ContributorPage() {
         ...(!isCTV ? [{ key: 'moderation' as ContributorTab, label: 'Kiểm duyệt' }] : []),
     ];
 
-    // Load data on tab change
+    // Reset search query on tab change
     useEffect(() => {
-        if (activeTab === 'overview') {
-            dispatch(fetchAdminPlacesThunk({ page: 1, size: 50 }));
-            dispatch(fetchAdminEventsThunk({ page: 1, size: 50 }));
-            if (!isCTV) {
-                dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
-                dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
+        setSearchQuery('');
+    }, [activeTab]);
+
+    // Load data on tab change or search
+    useEffect(() => {
+        const delaySearch = setTimeout(() => {
+            const isSearch = searchQuery.trim() !== '';
+
+            if (activeTab === 'overview') {
+                if (!isSearch) {
+                    dispatch(fetchAdminPlacesThunk({ page: 1, size: 50 }));
+                    dispatch(fetchAdminEventsThunk({ page: 1, size: 50 }));
+                    if (!isCTV) {
+                        dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
+                        dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
+                    }
+                }
+            } else if (activeTab === 'places') {
+                dispatch(fetchAdminPlacesThunk({ page: 1, size: isSearch ? 1000 : 10 }));
+                if (!isSearch) CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
+            } else if (activeTab === 'events') {
+                dispatch(fetchAdminEventsThunk({ page: 1, size: isSearch ? 1000 : 10 }));
+                if (!isSearch && categories.length === 0) CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
+            } else if (activeTab === 'moderation') {
+                dispatch(fetchPendingPlacesThunk({ page: 1, size: isSearch ? 1000 : 50 }));
+                dispatch(fetchPendingEventsThunk({ page: 1, size: isSearch ? 1000 : 50 }));
             }
-        } else if (activeTab === 'places') {
-            dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 }));
-            CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
-        } else if (activeTab === 'events') {
-            dispatch(fetchAdminEventsThunk({ page: 1, size: 10 }));
-            if (categories.length === 0) CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
-        } else if (activeTab === 'moderation') {
-            dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
-            dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
-        }
-    }, [activeTab, dispatch]);
+        }, 400);
+
+        return () => clearTimeout(delaySearch);
+    }, [activeTab, searchQuery, isCTV, dispatch]);
+
 
     // ── Place handlers ──
-    const handlePlacePageChange = (p: number) => dispatch(fetchAdminPlacesThunk({ page: p, size: 10 }));
+    const handlePlacePageChange = (p: number) => dispatch(fetchAdminPlacesThunk({ page: p, size: searchQuery.trim() ? 1000 : 10 }));
     const handleOpenCreatePlace = () => { dispatch(setSelectedPlace(null)); setShowPlaceForm(true); };
     const handleOpenEditPlace = (place: PlaceItem) => { dispatch(setSelectedPlace(place)); setShowPlaceForm(true); };
     const handlePlaceFormSubmit = async (data: CreatePlacePayload): Promise<string | null> => {
@@ -122,7 +138,7 @@ export function ContributorPage() {
     };
 
     // ── Event handlers ──
-    const handleEventPageChange = (p: number) => dispatch(fetchAdminEventsThunk({ page: p, size: 10 }));
+    const handleEventPageChange = (p: number) => dispatch(fetchAdminEventsThunk({ page: p, size: searchQuery.trim() ? 1000 : 10 }));
     const handleOpenCreateEvent = () => { dispatch(setSelectedEvent(null)); setShowEventForm(true); };
     const handleOpenEditEvent = (ev: EventItem) => { dispatch(setSelectedEvent(ev)); setShowEventForm(true); };
     const handleEventFormSubmit = async (data: CreateEventPayload | UpdateEventPayload): Promise<string | null> => {
@@ -263,7 +279,16 @@ export function ContributorPage() {
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex items-center justify-between flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800">Quản lý Địa điểm</h1>
-                                <button onClick={handleOpenCreatePlace} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition"><Plus size={16} /> Thêm địa điểm</button>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm địa điểm..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[250px]"
+                                    />
+                                    <button onClick={handleOpenCreatePlace} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition"><Plus size={16} /> Thêm địa điểm</button>
+                                </div>
                             </div>
                             <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
                                 <div className="overflow-x-auto flex-1">
@@ -273,7 +298,7 @@ export function ContributorPage() {
                                         </thead>
                                         <tbody className="divide-y text-gray-800">
                                             {placesLoading && <tr><td colSpan={7} className="py-10 text-center text-gray-500">Loading...</td></tr>}
-                                            {!placesLoading && places.map(p => (
+                                            {!placesLoading && places.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()))).map(p => (
                                                 <tr key={p.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3"><div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">{p.images?.find(i => i.isPrimary)?.url || p.images?.[0]?.url ? <img src={p.images.find(i => i.isPrimary)?.url || p.images[0]?.url} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-gray-400"><MapPin size={16} /></div>}</div></td>
                                                     <td className="px-4 py-3 font-semibold text-gray-900 max-w-[200px] truncate">{p.title}</td>
@@ -289,11 +314,11 @@ export function ContributorPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!placesLoading && places.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>}
+                                            {!placesLoading && places.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && <tr><td colSpan={7} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!placesLoading && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
+                                {!placesLoading && searchQuery.trim() === '' && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
                             </div>
                         </div>
                     )}
@@ -303,7 +328,16 @@ export function ContributorPage() {
                         <div className="flex flex-col h-full">
                             <div className="mb-6 flex items-center justify-between flex-shrink-0">
                                 <h1 className="text-2xl font-bold text-gray-800">Quản lý Sự kiện</h1>
-                                <button onClick={handleOpenCreateEvent} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition"><Plus size={16} /> Thêm sự kiện</button>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm sự kiện..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[250px]"
+                                    />
+                                    <button onClick={handleOpenCreateEvent} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition"><Plus size={16} /> Thêm sự kiện</button>
+                                </div>
                             </div>
                             <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
                                 <div className="overflow-x-auto flex-1">
@@ -313,7 +347,7 @@ export function ContributorPage() {
                                         </thead>
                                         <tbody className="divide-y text-gray-800">
                                             {eventsLoading && <tr><td colSpan={8} className="py-10 text-center text-gray-500">Loading...</td></tr>}
-                                            {!eventsLoading && events.map(ev => (
+                                            {!eventsLoading && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.address && e.address.toLowerCase().includes(searchQuery.toLowerCase()))).map(ev => (
                                                 <tr key={ev.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3"><div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">{ev.images?.[0]?.url ? <img src={ev.images[0].url} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-gray-400"><Calendar size={16} /></div>}</div></td>
                                                     <td className="px-4 py-3 font-semibold text-gray-900 max-w-[180px] truncate">{ev.title}</td>
@@ -330,11 +364,11 @@ export function ContributorPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!eventsLoading && events.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>}
+                                            {!eventsLoading && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.address && e.address.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && <tr><td colSpan={8} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!eventsLoading && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
+                                {!eventsLoading && searchQuery.trim() === '' && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
                             </div>
                         </div>
                     )}
@@ -342,11 +376,22 @@ export function ContributorPage() {
                     {/* ════════════ MODERATION ════════════ */}
                     {activeTab === 'moderation' && !isCTV && (
                         <div className="flex flex-col h-full">
-                            <div className="mb-6 flex-shrink-0">
-                                <h1 className="text-2xl font-bold text-gray-800 mb-4">Kiểm duyệt nội dung</h1>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setModerationSubTab('places')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'places' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Địa điểm ({placesTotalCount})</button>
-                                    <button onClick={() => setModerationSubTab('events')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'events' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Sự kiện ({eventsTotalCount})</button>
+                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800 mb-4">Kiểm duyệt nội dung</h1>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setModerationSubTab('places')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'places' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Địa điểm ({placesTotalCount})</button>
+                                        <button onClick={() => setModerationSubTab('events')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${moderationSubTab === 'events' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Sự kiện ({eventsTotalCount})</button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm nội dung..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[250px]"
+                                    />
                                 </div>
                             </div>
                             <div className="flex-1 rounded-xl border bg-white shadow-sm overflow-hidden flex flex-col">
@@ -359,7 +404,7 @@ export function ContributorPage() {
                                                 <tr><th className="px-4 py-3 font-semibold">Ảnh</th><th className="px-4 py-3 font-semibold">Tên</th><th className="px-4 py-3 font-semibold">Địa chỉ</th>{moderationSubTab === 'events' && <th className="px-4 py-3 font-semibold">Thời gian</th>}<th className="px-4 py-3 font-semibold">Ngày tạo</th><th className="px-4 py-3 font-semibold text-right">Thao tác</th></tr>
                                             </thead>
                                             <tbody className="divide-y text-gray-800">
-                                                {moderationSubTab === 'places' && pendingPlaces.map(p => (
+                                                {moderationSubTab === 'places' && pendingPlaces.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).map(p => (
                                                     <tr key={p.id} className="hover:bg-gray-50 transition">
                                                         <td className="px-4 py-3"><div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">{p.images?.[0]?.url ? <img src={p.images[0].url} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-gray-400"><MapPin size={16} /></div>}</div></td>
                                                         <td className="px-4 py-3 font-semibold text-gray-900">{p.title}</td>
@@ -374,7 +419,7 @@ export function ContributorPage() {
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {moderationSubTab === 'events' && pendingEvents.map(ev => (
+                                                {moderationSubTab === 'events' && pendingEvents.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase())).map(ev => (
                                                     <tr key={ev.id} className="hover:bg-gray-50 transition">
                                                         <td className="px-4 py-3"><div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">{ev.images?.[0]?.url ? <img src={ev.images[0].url} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-gray-400"><Calendar size={16} /></div>}</div></td>
                                                         <td className="px-4 py-3 font-semibold text-gray-900">{ev.title}</td>
@@ -390,8 +435,8 @@ export function ContributorPage() {
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {moderationSubTab === 'places' && pendingPlaces.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-gray-500">Không có địa điểm chờ duyệt.</td></tr>}
-                                                {moderationSubTab === 'events' && pendingEvents.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-gray-500">Không có sự kiện chờ duyệt.</td></tr>}
+                                                {moderationSubTab === 'places' && pendingPlaces.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && <tr><td colSpan={5} className="py-10 text-center text-gray-500">Không có địa điểm chờ duyệt.</td></tr>}
+                                                {moderationSubTab === 'events' && pendingEvents.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && <tr><td colSpan={6} className="py-10 text-center text-gray-500">Không có sự kiện chờ duyệt.</td></tr>}
                                             </tbody>
                                         </table>
                                     </div>
