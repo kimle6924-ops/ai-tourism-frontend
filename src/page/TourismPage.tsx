@@ -22,11 +22,11 @@ export default function TourismPage() {
 
   useEffect(() => {
     dispatch(fetchDiscoveryTagsThunk());
-    dispatch(fetchTourismPlacesThunk({ Tag: selectedTags, PageNumber: 1 }));
+    dispatch(fetchTourismPlacesThunk({ tags: selectedTags, PageNumber: 1 }));
   }, [dispatch]);
 
   const handlePageChange = (page: number) => {
-    dispatch(fetchTourismPlacesThunk({ Tag: selectedTags, PageNumber: page }));
+    dispatch(fetchTourismPlacesThunk({ tags: selectedTags, PageNumber: page }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -41,7 +41,7 @@ export default function TourismPage() {
 
   const handleApplyTags = () => {
     dispatch(setSelectedTags(tempTags));
-    dispatch(fetchTourismPlacesThunk({ Tag: tempTags, PageNumber: 1 }));
+    dispatch(fetchTourismPlacesThunk({ tags: tempTags, PageNumber: 1 }));
     setIsDialogOpen(false);
     resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -53,7 +53,7 @@ export default function TourismPage() {
   const removeTag = (tag: string) => {
     const newTags = selectedTags.filter(t => t !== tag);
     dispatch(setSelectedTags(newTags));
-    dispatch(fetchTourismPlacesThunk({ Tag: newTags, PageNumber: 1 }));
+    dispatch(fetchTourismPlacesThunk({ tags: newTags, PageNumber: 1 }));
   };
 
   const renderPagination = () => {

@@ -2,7 +2,7 @@ import axiosInstance from '../utils/headerApi';
 import type { Place } from './PlacesServices';
 
 export interface TourismTagParams {
-  Tag?: string[];
+  tags?: string[];
   RadiusKm?: number;
   PageNumber?: number;
   PageSize?: number;
@@ -30,8 +30,8 @@ const TourismService = {
     try {
       console.log('[TourismService] getPlacesByTag → params:', params);
       const queryParams = new URLSearchParams();
-      if (params.Tag && params.Tag.length > 0) {
-        params.Tag.forEach(tag => queryParams.append('Tag', tag));
+      if (params.tags && params.tags.length > 0) {
+        params.tags.forEach(tag => queryParams.append('tags', tag));
       }
       // Provide default RadiusKm if none given, or omit to rely on backend
       const radius = params.RadiusKm ?? 3000;
