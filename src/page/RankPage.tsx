@@ -26,36 +26,30 @@ export default function RankPage() {
 
   return (
     <div className="min-h-screen bg-white font-['Inter']">
-      <section className="px-3 pb-8 pt-4 sm:px-6 sm:pt-6">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-6">
-          <div className="bg-white/95 px-4 py-3 sm:px-6">
-            <MainHeader />
-          </div>
+      {/* Header Banner */}
+      <div
+        className="w-full h-32 relative shadow-md"
+        style={{
+          backgroundImage: `url(${bannerImg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 20%',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <MainHeader transparent={true} />
+      </div>
 
-          <div
-            className="relative overflow-hidden rounded-[28px] shadow-lg ring-1 ring-[#00008A]/15"
-            style={{
-              backgroundImage: `url(${bannerImg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center 20%',
-              backgroundRepeat: 'no-repeat'
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-b from-white/16 via-[#C8D8FF]/20 to-white/28" />
-            <div className="relative z-10 flex min-h-[280px] flex-col items-center justify-center px-4 py-8 text-center sm:min-h-[320px] sm:px-8">
-              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-100/95 text-yellow-600 shadow-sm sm:h-16 sm:w-16">
-                <Trophy size={32} />
-              </div>
-              <h1 className="text-3xl font-bold text-[#00008A]">Bảng xếp hạng tài khoản</h1>
-              <p className="mt-3 max-w-2xl text-sm font-medium text-[#152C77] sm:text-base">
-                Vinh danh những thành viên có đóng góp tích cực nhất cho cộng đồng Vivu.
-              </p>
-            </div>
+      <main className="mx-auto max-w-7xl px-4 py-12">
+        {/* Header Section */}
+        <div className="mb-12 text-center">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-600 mb-6 shadow-sm">
+            <Trophy size={32} />
           </div>
+          <h1 className="text-3xl font-bold text-[#00008A]">Bảng xếp hạng tài khoản</h1>
+          <p className="mt-4 text-gray-700 max-w-2xl mx-auto">
+            Vinh danh những thành viên có đóng góp tích cực nhất cho cộng đồng Vivu.
+          </p>
         </div>
-      </section>
-
-      <main className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
 
         {/* Loading State */}
         {loading && (
