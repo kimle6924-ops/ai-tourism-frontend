@@ -787,31 +787,22 @@ export function HomePage() {
   return (
     <div className="w-full bg-white font-['Inter']">
       {/* Hero Section */}
-      <div
-        className="relative min-h-screen w-full overflow-hidden"
-        style={{
-          backgroundImage: `url(${bannerImg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        <div className="relative z-10 mx-auto flex h-full min-h-screen max-w-7xl flex-col items-center px-4 pt-8">
-
+      <section className="px-3 pb-10 pt-4 sm:px-6 sm:pt-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-6">
           {/* Header */}
-          <header className="flex w-full items-center justify-between px-2 sm:px-8">
+          <header className="flex flex-col gap-3 rounded-2xl bg-white/95 px-4 py-3 shadow-md ring-1 ring-[#00008A]/10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             {/* Left: Logo */}
-            <button onClick={handleGoHome} className="flex items-center">
+            <button onClick={handleGoHome} className="flex items-center justify-center sm:justify-start">
               <img
                 src={logoImg}
                 alt="vivu logo"
-                className="h-20 object-contain drop-shadow-md"
+                className="h-14 object-contain sm:h-16"
               />
             </button>
 
             {/* Right: Menu + User */}
-            <div className="flex items-center gap-6 font-bold text-[#002B6B]">
-              <button onClick={handleGoHome} className="cursor-pointer hover:text-blue-600">Trang chủ</button>
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-bold text-[#0A1E7A] sm:justify-end sm:gap-x-6 sm:text-base">
+              <button onClick={handleGoHome} className="cursor-pointer border-b-2 border-[#0A1E7A] pb-0.5 hover:text-blue-600">Trang chủ</button>
               <Link to="/tourism" className="cursor-pointer hover:text-blue-600">Du lịch</Link>
               <Link to="/events" className="cursor-pointer hover:text-blue-600">Sự Kiện</Link>
               <Link to="/ranks" className="cursor-pointer hover:text-blue-600">Xếp hạng</Link>
@@ -820,44 +811,54 @@ export function HomePage() {
             </div>
           </header>
 
-          {/* Main Content */}
-          <main className="flex w-full flex-1 flex-col items-center justify-center pb-32">
+          <div
+            className="relative overflow-hidden rounded-[28px] shadow-lg ring-1 ring-[#00008A]/15"
+            style={{
+              backgroundImage: `url(${bannerImg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-white/18 via-[#C8D8FF]/18 to-white/24" />
 
-            {/* Hero image text */}
-            <div className="mb-12">
-              <img src={text1Img} alt="Hôm nay đi đâu ?" className="max-w-2xl w-full drop-shadow-2xl" />
-            </div>
-
-            {/* Search Bar */}
-            <div className="relative mb-8 w-full max-w-2xl px-4 sm:px-0">
-              <div className="relative flex h-16 items-center overflow-hidden rounded-full border border-blue-900/40 bg-white/20 shadow-lg backdrop-blur-md transition-all focus-within:border-white/60 focus-within:bg-white/40 focus-within:shadow-[0_0_20px_rgba(255,255,255,0.5)] hover:bg-white/30 hover:shadow-xl">
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm ngay"
-                  value={currentQuery}
-                  onChange={(e) => dispatch(setDiscoveryQuery(e.target.value))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSearchClick();
-                  }}
-                  className="h-full w-full bg-transparent px-8 text-lg text-[#002B6B] placeholder-[#002B6B]/60 outline-none"
-                />
-                <button onClick={handleSearchClick} className="flex h-full items-center justify-center px-6 text-[#002B6B] transition-colors hover:text-blue-900">
-                  <Search size={28} />
-                </button>
+            {/* Main Content */}
+            <main className="relative z-10 flex min-h-[420px] w-full flex-col items-center justify-center px-4 pb-10 pt-8 sm:min-h-[500px] sm:px-8 sm:pb-14 sm:pt-10">
+              {/* Hero image text */}
+              <div className="mb-8 w-full max-w-[640px] sm:mb-10">
+                <img src={text1Img} alt="Hôm nay đi đâu ?" className="w-full drop-shadow-[0_8px_24px_rgba(15,33,110,0.26)]" />
               </div>
-            </div>
 
-            {/* CTA Button */}
-            <button onClick={handleSearchClick} className="group mt-4 flex items-center justify-center gap-3 rounded-full bg-[#E0F7FA] px-8 py-4 font-bold text-[#002B6B] shadow-lg transition-all hover:-translate-y-1 hover:bg-white hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] active:translate-y-0 disabled:opacity-70">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm overflow-hidden">
-                <img src={locationImg} alt="location" className="h-7 w-7 object-contain" />
+              {/* Search Bar */}
+              <div className="relative mb-6 w-full max-w-3xl">
+                <div className="relative flex h-14 items-center overflow-hidden rounded-full border-2 border-[#273CA6]/55 bg-white/45 shadow-lg backdrop-blur-sm transition-all focus-within:border-[#142E9E] focus-within:bg-white/60 focus-within:shadow-[0_0_18px_rgba(24,46,158,0.22)] sm:h-16">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm ngay"
+                    value={currentQuery}
+                    onChange={(e) => dispatch(setDiscoveryQuery(e.target.value))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSearchClick();
+                    }}
+                    className="h-full w-full bg-transparent px-6 text-base font-semibold text-[#0E2A8A] placeholder-[#0E2A8A]/65 outline-none sm:px-8 sm:text-lg"
+                  />
+                  <button onClick={handleSearchClick} className="flex h-full items-center justify-center px-5 text-[#0E2A8A] transition-colors hover:text-blue-900 sm:px-6">
+                    <Search size={28} />
+                  </button>
+                </div>
               </div>
-              <span className="text-xl">Khám phá ngay</span>
-            </button>
 
-          </main>
+              {/* CTA Button */}
+              <button onClick={handleSearchClick} className="group mt-1 flex items-center justify-center gap-3 rounded-full bg-[#EAF7FF] px-6 py-3 font-bold text-[#002B6B] shadow-lg transition-all hover:-translate-y-1 hover:bg-white hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] active:translate-y-0 disabled:opacity-70 sm:px-8 sm:py-4">
+                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm sm:h-10 sm:w-10">
+                  <img src={locationImg} alt="location" className="h-6 w-6 object-contain sm:h-7 sm:w-7" />
+                </div>
+                <span className="text-lg sm:text-xl">Khám phá ngay</span>
+              </button>
+            </main>
+          </div>
         </div>
-      </div>
+      </section>
 
       <div ref={resultsRef} className="scroll-mt-10">
         {isSearched ? (
