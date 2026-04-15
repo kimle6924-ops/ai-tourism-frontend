@@ -99,28 +99,34 @@ export default function TourismPage() {
 
   return (
     <div className="min-h-screen bg-white font-['Inter'] relative">
-      {/* Header Banner */}
-      <div
-          className="w-full h-32 relative shadow-md"
-          style={{
+      <section className="px-3 pb-8 pt-4 sm:px-6 sm:pt-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-6">
+          <div className="bg-white/95 px-4 py-3 sm:px-6">
+            <MainHeader />
+          </div>
+
+          <div
+            className="relative overflow-hidden rounded-[28px] shadow-lg ring-1 ring-[#00008A]/15"
+            style={{
               backgroundImage: `url(${bannerImg})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center 20%',
               backgroundRepeat: 'no-repeat'
-          }}
-      >
-          <MainHeader transparent={true} />
-      </div>
-
-      <main className="mx-auto max-w-7xl px-4 py-12">
-        {/* Title & Description */}
-        <div className="mb-12 text-center">
-            <img src={text2Img} alt="Du lịch" className="h-16 mx-auto mb-6 object-contain drop-shadow-md" />
-            <h1 className="text-3xl font-bold text-[#00008A]">Khám phá điểm đến</h1>
-            <p className="mt-4 text-gray-700 max-w-2xl mx-auto">
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-white/16 via-[#C8D8FF]/20 to-white/28" />
+            <div className="relative z-10 flex min-h-[280px] flex-col items-center justify-center px-4 py-8 text-center sm:min-h-[320px] sm:px-8">
+              <img src={text2Img} alt="Du lịch" className="h-14 object-contain drop-shadow-md sm:h-16" />
+              <h1 className="mt-5 text-3xl font-bold text-[#00008A]">Khám phá điểm đến</h1>
+              <p className="mt-3 max-w-2xl text-sm font-medium text-[#152C77] sm:text-base">
                 Tìm kiếm những địa danh nổi tiếng và những trải nghiệm tuyệt vời nhất dựa trên các chủ đề du lịch yêu thích.
-            </p>
+              </p>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <main className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
 
         {/* Filter Bar */}
         <div className="mx-auto mb-10 w-full max-w-6xl flex flex-col md:flex-row gap-4 items-center justify-between border-b border-gray-100 pb-6">

@@ -129,30 +129,36 @@ export default function EventPage() {
 
   return (
     <div className="min-h-screen bg-white font-['Inter']">
-      {/* Header Banner */}
-      <div
-        className="w-full h-32 relative shadow-md"
-        style={{
-          backgroundImage: `url(${bannerImg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 20%',
-          backgroundRepeat: 'no-repeat',
-        }}
-      >
-        <MainHeader transparent={true} />
-      </div>
-
-      <main className="mx-auto max-w-7xl px-4 py-12">
-        {/* Title */}
-        <div className="mb-10 text-center">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 mb-6 shadow-sm">
-            <Calendar size={32} />
+      <section className="px-3 pb-8 pt-4 sm:px-6 sm:pt-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-6">
+          <div className="bg-white/95 px-4 py-3 sm:px-6">
+            <MainHeader />
           </div>
-          <h1 className="text-3xl font-bold text-[#00008A]">Sự kiện nổi bật</h1>
-          <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-            Tham gia các lễ hội, triển lãm và sự kiện văn hóa nghệ thuật đặc sắc đang và sắp diễn ra gần bạn.
-          </p>
+
+          <div
+            className="relative overflow-hidden rounded-[28px] shadow-lg ring-1 ring-[#00008A]/15"
+            style={{
+              backgroundImage: `url(${bannerImg})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 20%',
+              backgroundRepeat: 'no-repeat',
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-white/16 via-[#C8D8FF]/20 to-white/28" />
+            <div className="relative z-10 flex min-h-[280px] flex-col items-center justify-center px-4 py-8 text-center sm:min-h-[320px] sm:px-8">
+              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100/95 text-orange-600 shadow-sm sm:h-16 sm:w-16">
+                <Calendar size={32} />
+              </div>
+              <h1 className="text-3xl font-bold text-[#00008A]">Sự kiện nổi bật</h1>
+              <p className="mt-3 max-w-2xl text-sm font-medium text-[#152C77] sm:text-base">
+                Tham gia các lễ hội, triển lãm và sự kiện văn hóa nghệ thuật đặc sắc đang và sắp diễn ra gần bạn.
+              </p>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <main className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
 
         {/* Timeline Filter Tabs */}
         <div className="flex justify-center gap-3 mb-10 flex-wrap">
