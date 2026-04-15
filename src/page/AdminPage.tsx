@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { ProfileDropdown } from './HomePage';
+import ProfileDropdown from '../components/ProfileDropdown';
 import type { AppDispatch, RootState } from '../store';
 import { fetchAdminUsersThunk, lockUserThunk, unlockUserThunk, approveUserThunk } from '../store/slice/AdminManagerUserSlice';
 import { fetchOverviewStatsThunk } from '../store/slice/AdminManagerOverviewSlice';

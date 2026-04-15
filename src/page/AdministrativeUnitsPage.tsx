@@ -1,4 +1,4 @@
-import { ProfileDropdown } from './HomePage';
+import ProfileDropdown from '../components/ProfileDropdown';
 
 export function AdministrativeUnitsPage() {
     return (
