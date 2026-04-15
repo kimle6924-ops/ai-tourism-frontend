@@ -7,6 +7,7 @@ import MainHeader from '../components/MainHeader';
 import bannerImg from '../assets/images/banner.jpg';
 import Footer from '../components/Footer';
 import { ChatbotWidget } from '../components/ChatbotWidget';
+import { CommunityChatWidget } from '#/components/CommunityChatWidget';
 
 function getAvatarUrl(avatarUrl: string, seed: string) {
   if (avatarUrl && avatarUrl.trim() !== '') return avatarUrl;
@@ -26,17 +27,20 @@ export default function RankPage() {
 
   return (
     <div className="min-h-screen bg-white font-['Inter']">
+      <MainHeader />
+
       {/* Header Banner */}
-      <div
-        className="w-full h-32 relative shadow-md"
-        style={{
-          backgroundImage: `url(${bannerImg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 20%',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        <MainHeader transparent={true} />
+      <div className="mx-auto max-w-7xl px-4 pt-6">
+        <div
+          className="w-full h-48 relative shadow-md rounded-[32px] overflow-hidden"
+          style={{
+            backgroundImage: `url(${bannerImg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center 20%',
+            backgroundRepeat: 'no-repeat'
+          }}
+        >
+        </div>
       </div>
 
       <main className="mx-auto max-w-7xl px-4 py-12">
@@ -208,6 +212,7 @@ export default function RankPage() {
 
       <Footer />
       <ChatbotWidget />
+      <CommunityChatWidget />
     </div>
   );
 }

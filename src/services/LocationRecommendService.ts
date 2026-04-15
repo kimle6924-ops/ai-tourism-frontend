@@ -35,6 +35,8 @@ export interface RecommendMixItem {
   averageRating: number;
   distanceKm: number;
   primaryImageUrl: string;
+  description: string;
+  tags: string[];
   preferenceMatched: boolean;
   preferenceMatchScore: number;
   distanceScore: number;

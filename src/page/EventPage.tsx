@@ -10,6 +10,9 @@ import Footer from '../components/Footer';
 import { ChatbotWidget } from '../components/ChatbotWidget';
 import { useNavigate } from '@tanstack/react-router';
 import { Star } from 'lucide-react';
+import locationImg from '../assets/images/image_location.png';
+import text1Img from '../assets/images/image_text1.png';
+import { CommunityChatWidget } from '#/components/CommunityChatWidget';
 
 const FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=400',
@@ -18,10 +21,10 @@ const FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1528605248644-14dd04022da1?q=80&w=400',
 ];
 
-const TIMELINE_OPTIONS: { label: string; value: TimelineFilter; icon: React.ReactNode; color: string }[] = [
-  { label: 'Tất cả', value: 'both', icon: <Calendar size={16} />, color: 'bg-[#00008A] text-white' },
-  { label: '🔥 Đang diễn ra', value: 'ongoing', icon: <Flame size={16} />, color: 'bg-orange-500 text-white' },
-  { label: '📅 Sắp diễn ra', value: 'upcoming', icon: <Clock size={16} />, color: 'bg-blue-500 text-white' },
+const TIMELINE_OPTIONS: { label: string; value: TimelineFilter }[] = [
+  { label: 'Tất cả', value: 'both' },
+  { label: 'Đang diễn ra', value: 'ongoing' },
+  { label: 'Sắp diễn ra', value: 'upcoming' },
 ];
 
 function EventStatusBadge({ status }: { status: number }) {
@@ -127,42 +130,67 @@ export default function EventPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const scrollToResults = () => {
+    const resultsSection = document.getElementById('event-results');
+    if (resultsSection) {
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white font-['Inter']">
+      <MainHeader />
+
       {/* Header Banner */}
-      <div
-        className="w-full h-32 relative shadow-md"
-        style={{
-          backgroundImage: `url(${bannerImg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 20%',
-          backgroundRepeat: 'no-repeat',
-        }}
-      >
-        <MainHeader transparent={true} />
+      <div className="mx-auto max-w-7xl px-4 pt-6">
+        <div
+          className="relative min-h-[600px] w-full overflow-hidden rounded-[40px] shadow-xl"
+          style={{
+            backgroundImage: `url(${bannerImg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        >
+          <div className="relative z-10 mx-auto flex h-full flex-col items-center px-4 py-8">
+            <main className="flex w-full flex-1 flex-col items-center justify-center py-20">
+              <div className="mb-12">
+                <img src={text1Img} alt="Hôm nay đi đâu ?" className="max-w-2xl w-full drop-shadow-2xl" />
+              </div>
+              <div className="mb-12 text-center">
+                {/* Tăng từ text-3xl lên text-5xl (to rõ rệt) và thêm tracking-tight để chữ trông gọn hơn khi to */}
+                <h1 className="text-5xl font-extrabold text-[#00008A] tracking-tight md:text-6xl">
+                  Khám phá sự kiện
+                </h1>
+
+                {/* Tăng từ mặc định lên text-xl, thêm leading-relaxed để dãn dòng cho dễ đọc */}
+                <p className="mt-6 text-xl leading-relaxed text-gray-700 max-w-3xl mx-auto">
+                  Tham gia các lễ hội, triển lãm và sự kiện văn hoá nghệ thuật đặc sắc đang diễn ra và sắp diễn ra gần bạn
+                </p>
+              </div>
+
+              <button onClick={scrollToResults} className="group mt-4 flex items-center justify-center gap-3 rounded-full bg-[#E0F7FA] px-8 py-4 font-bold text-[#002B6B] shadow-lg transition-all hover:-translate-y-1 hover:bg-white active:translate-y-0">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm overflow-hidden">
+                  <img src={locationImg} alt="location" className="h-7 w-7 object-contain" />
+                </div>
+                <span className="text-xl">Khám phá ngay</span>
+              </button>
+            </main>
+          </div>
+        </div>
       </div>
 
       <main className="mx-auto max-w-7xl px-4 py-12">
-        {/* Title */}
-        <div className="mb-10 text-center">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 mb-6 shadow-sm">
-            <Calendar size={32} />
-          </div>
-          <h1 className="text-3xl font-bold text-[#00008A]">Sự kiện nổi bật</h1>
-          <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-            Tham gia các lễ hội, triển lãm và sự kiện văn hóa nghệ thuật đặc sắc đang và sắp diễn ra gần bạn.
-          </p>
-        </div>
 
-        {/* Timeline Filter Tabs */}
-        <div className="flex justify-center gap-3 mb-10 flex-wrap">
+        {/* Timeline Filter Tabs - Moved and Styled as per image */}
+        <div className="flex justify-center gap-30 mb-12">
           {TIMELINE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => handleTimelineChange(opt.value)}
-              className={`flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold shadow-sm transition-all active:scale-95 ${timeline === opt.value
-                ? opt.color + ' shadow-md ring-2 ring-offset-1 ring-current'
-                : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:ring-gray-300'
+              className={`min-w-[180px] rounded-2xl py-3.5 px-8 text-lg font-bold transition-all active:scale-95 shadow-sm border ${timeline === opt.value
+                ? 'bg-[#000054] text-white border-[#000054] shadow-md'
+                : 'bg-white text-[#000054] border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                 }`}
             >
               {opt.label}
@@ -170,18 +198,20 @@ export default function EventPage() {
           ))}
         </div>
 
-        {/* Section header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-10 flex items-center justify-between border-b border-gray-100 pb-6">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-1 rounded-full bg-orange-500" />
-            <h2 className="text-2xl font-bold text-[#00008A]">
-              {timeline === 'ongoing' ? 'Đang diễn ra' : timeline === 'upcoming' ? 'Sắp diễn ra' : 'Tất cả sự kiện'}
+            <div className="h-8 w-1.5 rounded-full bg-orange-500" />
+            <h2 className="text-3xl font-extrabold text-[#000054]">
+              {timeline === 'ongoing' ? 'Đang diễn ra' : timeline === 'upcoming' ? 'Sắp diễn ra' : 'Danh sách sự kiện'}
             </h2>
           </div>
           {!loading && totalCount > 0 && (
-            <span className="text-sm font-medium text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
-              {totalCount} sự kiện
-            </span>
+            <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-full border border-gray-100 shadow-sm">
+              <Star size={16} className="text-yellow-500 fill-yellow-500" />
+              <span className="text-sm font-bold text-[#000054]">
+                {totalCount} sự kiện tìm thấy
+              </span>
+            </div>
           )}
         </div>
 
@@ -227,32 +257,39 @@ export default function EventPage() {
               </div>
             )}
 
-            {/* Pagination */}
+            {/* Pagination - Standardized to match TourismPage */}
             {totalPages > 1 && (
               <div className="mt-12 flex justify-center items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all bg-white text-[#00008A] shadow-sm ring-1 ring-[#00008A]/20 hover:bg-[#00008A] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all bg-white text-[#00008A] shadow-sm ring-1 ring-[#00008A]/20 hover:bg-[#00008A] hover:text-white disabled:opacity-40"
                 >
                   Trước
                 </button>
-                {Array.from({ length: totalPages }).map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handlePageChange(i + 1)}
-                    className={`w-10 h-10 rounded-xl font-bold transition-all ${currentPage === i + 1
-                      ? 'bg-[#00008A] text-white shadow-md'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  const page = i + 1;
+                  if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`w-10 h-10 rounded-xl font-bold transition-all ${currentPage === page ? 'bg-[#00008A] text-white shadow-md' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  } else if (page === currentPage - 2 || page === currentPage + 2) {
+                    return <span key={page} className="px-2 text-gray-400 font-bold">...</span>;
+                  }
+                  return null;
+                })}
+
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all bg-white text-[#00008A] shadow-sm ring-1 ring-[#00008A]/20 hover:bg-[#00008A] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all bg-white text-[#00008A] shadow-sm ring-1 ring-[#00008A]/20 hover:bg-[#00008A] hover:text-white disabled:opacity-40"
                 >
                   Sau
                 </button>
@@ -264,6 +301,7 @@ export default function EventPage() {
 
       <Footer />
       <ChatbotWidget />
+      <CommunityChatWidget />
     </div>
   );
 }

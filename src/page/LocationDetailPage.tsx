@@ -148,13 +148,16 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                     backgroundRepeat: 'no-repeat'
                 }}
             >
-                <div className="absolute inset-0 bg-black/20 pointer-events-none" />
-                <div className="flex-1 relative z-10" />
+                {/* <div className="absolute inset-0 bg-black/20 pointer-events-none" /> */}
+                {/* <div className="flex-1 relative z-10" /> */}
                 <div className="flex-1 flex justify-center relative z-10">
                     <Link to="/">
-                        <img src={logoImg} alt="Vivu Logo" className="h-[80px] drop-shadow-md hover:scale-105 transition-transform" />
+                        <img src={logoImg} alt="Vivu Logo" className="h-[40px] drop-shadow-md hover:scale-105 transition-transform" />
                     </Link>
                 </div>
+                <div className="flex-1 relative z-10" />
+
+
                 <div className="flex-1 flex justify-end relative z-10">
                     <ProfileDropdown />
                 </div>

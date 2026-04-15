@@ -14,17 +14,21 @@ export default function MainHeader({ transparent = false }: MainHeaderProps) {
         <img
           src={logoImg}
           alt="vivu logo"
-          className="h-16 sm:h-20 object-contain transition-transform hover:scale-105"
+          className="h-10 sm:h-14 object-contain transition-transform hover:scale-105"
         />
       </Link>
 
       {/* Right: Menu + User */}
       <div className="flex items-center gap-4 sm:gap-12">
-        <nav className={`hidden md:flex items-center gap-10 text-[16px] ${transparent ? 'font-black drop-shadow-md text-[#050B56]' : 'font-extrabold text-[#00008A]'}`}>
+        <nav className={`hidden md:flex items-center gap-10 text-[16px] ${transparent ? 'font-black drop-shadow-md text-white' : 'font-extrabold !text-[#000054]'}`}>
           <Link
             to="/"
-            activeProps={{ className: 'border-b-2 border-[#00008A] text-[#00008A]' }}
-            inactiveProps={{ className: 'border-b-2 border-transparent hover:text-[#1A2EA0]' }}
+            activeProps={{
+              className: 'border-b-2 border-[#000054] !text-[#000054]'
+            }}
+            inactiveProps={{
+              className: 'border-b-2 border-transparent !text-[#000054] hover:!text-[#1A2EA0]'
+            }}
             activeOptions={{ exact: true }}
             className="pb-1 transition-all duration-300"
           >
@@ -32,24 +36,24 @@ export default function MainHeader({ transparent = false }: MainHeaderProps) {
           </Link>
           <Link
             to="/tourism"
-            activeProps={{ className: 'border-b-2 border-[#00008A] text-[#00008A]' }}
-            inactiveProps={{ className: 'border-b-2 border-transparent hover:text-[#1A2EA0]' }}
+            activeProps={{ className: 'border-b-2 border-[#000054] !text-[#000054]' }}
+            inactiveProps={{ className: 'border-b-2 border-transparent !text-[#000054] hover:!text-[#1A2EA0]' }}
             className="pb-1 transition-all duration-300"
           >
             Du lịch
           </Link>
           <Link
             to="/events"
-            activeProps={{ className: 'border-b-2 border-[#00008A] text-[#00008A]' }}
-            inactiveProps={{ className: 'border-b-2 border-transparent hover:text-[#1A2EA0]' }}
+            activeProps={{ className: 'border-b-2 border-[#000054] !text-[#000054]' }}
+            inactiveProps={{ className: 'border-b-2 border-transparent !text-[#000054] hover:!text-[#1A2EA0]' }}
             className="pb-1 transition-all duration-300"
           >
             Sự kiện
           </Link>
           <Link
             to="/ranks"
-            activeProps={{ className: 'border-b-2 border-[#00008A] text-[#00008A]' }}
-            inactiveProps={{ className: 'border-b-2 border-transparent hover:text-[#1A2EA0]' }}
+            activeProps={{ className: 'border-b-2 border-[#000054] !text-[#000054]' }}
+            inactiveProps={{ className: 'border-b-2 border-transparent !text-[#000054] hover:!text-[#1A2EA0]' }}
             className="pb-1 transition-all duration-300"
           >
             Xếp hạng

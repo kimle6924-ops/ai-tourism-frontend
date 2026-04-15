@@ -18,24 +18,13 @@ import { ChatbotWidget } from '../components/ChatbotWidget';
 import { CommunityChatWidget } from '../components/CommunityChatWidget';
 import Footer from '../components/Footer';
 import MainHeader from '../components/MainHeader';
-import ProfileDropdown from '../components/ProfileDropdown';
 import bannerImg from '../assets/images/banner.jpg';
 import planeImg from '../assets/images/plane.png';
 import chatbotImg from '../assets/images/image_chatbot.png';
-import logoImg from '../assets/images/image_logo_vivu.png';
-import profileImg from '../assets/images/image_profile.png';
 import locationImg from '../assets/images/image_location.png';
 import text1Img from '../assets/images/image_text1.png';
 import text2Img from '../assets/images/image_text2.png';
 import text3Img from '../assets/images/image_text3.png';
-
-const TYPE_EMOJI: Record<string, string> = {
-  theme: '🗺️', style: '✨', activity: '🏃', budget: '💰', companion: '👥',
-  tourism: '🌏', food: '🍜', accommodation: '🏨', entertainment: '🎉',
-  shopping: '🛍️', event: '🎊',
-};
-
-
 
 // ─────────────────────────────────────────────
 // Destination Card
@@ -307,207 +296,207 @@ export function HomePage() {
 
   return (
     <div className="w-full bg-white font-['Inter']">
+      <MainHeader />
+
       {/* Hero Section */}
-      <div
-        className="relative min-h-screen w-full overflow-hidden"
-        style={{
-          backgroundImage: `url(${bannerImg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        <div className="relative z-10 mx-auto flex h-full min-h-screen max-w-7xl flex-col items-center px-4 pt-8">
+      <div className="mx-auto max-w-7xl px-4 pt-6">
+        <div
+          className="relative min-h-[600px] w-full overflow-hidden rounded-[40px] shadow-xl"
+          style={{
+            backgroundImage: `url(${bannerImg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        >
+          <div className="relative z-10 mx-auto flex h-full flex-col items-center px-4 py-8">
+            {/* Main Content inside rounded banner */}
+            <main className="flex w-full flex-1 flex-col items-center justify-center py-20">
 
-          {/* Header */}
-          <MainHeader transparent />
-
-          {/* Main Content */}
-          <main className="flex w-full flex-1 flex-col items-center justify-center pb-32">
-
-            {/* Hero image text */}
-            <div className="mb-12">
-              <img src={text1Img} alt="Hôm nay đi đâu ?" className="max-w-2xl w-full drop-shadow-2xl" />
-            </div>
-
-            {/* Search Bar */}
-            <div className="relative mb-8 w-full max-w-2xl px-4 sm:px-0">
-              <div className="relative flex h-16 items-center overflow-hidden rounded-full border border-blue-900/40 bg-white/20 shadow-lg backdrop-blur-md transition-all focus-within:border-white/60 focus-within:bg-white/40 focus-within:shadow-[0_0_20px_rgba(255,255,255,0.5)] hover:bg-white/30 hover:shadow-xl">
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm ngay"
-                  value={currentQuery}
-                  onChange={(e) => dispatch(setDiscoveryQuery(e.target.value))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSearchClick();
-                  }}
-                  className="h-full w-full bg-transparent px-8 text-lg text-[#002B6B] placeholder-[#002B6B]/60 outline-none"
-                />
-                <button onClick={handleSearchClick} className="flex h-full items-center justify-center px-6 text-[#002B6B] transition-colors hover:text-blue-900">
-                  <Search size={28} />
-                </button>
+              {/* Hero image text */}
+              <div className="mb-12">
+                <img src={text1Img} alt="Hôm nay đi đâu ?" className="max-w-2xl w-full drop-shadow-2xl" />
               </div>
-            </div>
 
-            {/* CTA Button */}
-            <button onClick={handleSearchClick} className="group mt-4 flex items-center justify-center gap-3 rounded-full bg-[#E0F7FA] px-8 py-4 font-bold text-[#002B6B] shadow-lg transition-all hover:-translate-y-1 hover:bg-white hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] active:translate-y-0 disabled:opacity-70">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm overflow-hidden">
-                <img src={locationImg} alt="location" className="h-7 w-7 object-contain" />
+              {/* Search Bar */}
+              <div className="relative mb-8 w-full max-w-2xl px-4 sm:px-0">
+                <div className="relative flex h-16 items-center overflow-hidden rounded-full border border-blue-900/40 bg-white/20 shadow-lg backdrop-blur-md transition-all focus-within:border-white/60 focus-within:bg-white/40 focus-within:shadow-[0_0_20px_rgba(255,255,255,0.5)] hover:bg-white/30 hover:shadow-xl">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm ngay"
+                    value={currentQuery}
+                    onChange={(e) => dispatch(setDiscoveryQuery(e.target.value))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSearchClick();
+                    }}
+                    className="h-full w-full bg-transparent px-8 text-lg text-[#002B6B] placeholder-[#002B6B]/60 outline-none"
+                  />
+                  <button onClick={handleSearchClick} className="flex h-full items-center justify-center px-6 text-[#002B6B] transition-colors hover:text-blue-900">
+                    <Search size={28} />
+                  </button>
+                </div>
               </div>
-              <span className="text-xl">Khám phá ngay</span>
-            </button>
 
-          </main>
+              {/* CTA Button */}
+              <button onClick={handleSearchClick} className="group mt-4 flex items-center justify-center gap-3 rounded-full bg-[#E0F7FA] px-8 py-4 font-bold text-[#002B6B] shadow-lg transition-all hover:-translate-y-1 hover:bg-white hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] active:translate-y-0 disabled:opacity-70">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm overflow-hidden">
+                  <img src={locationImg} alt="location" className="h-7 w-7 object-contain" />
+                </div>
+                <span className="text-xl">Khám phá ngay</span>
+              </button>
+            </main>
+          </div>
         </div>
-      </div>
 
-      <div ref={resultsRef} className="scroll-mt-10">
-        {isSearched ? (
-          <section className="mx-auto mt-16 max-w-7xl px-4 py-8 flex flex-col md:flex-row gap-8 min-h-[50vh]">
-            {/* Sidebar */}
-            <div className="w-full md:w-64 flex-shrink-0">
-              <div className="bg-[#E0FAFA] rounded-3xl p-6 flex flex-col gap-6 sticky top-24">
-                <div>
-                  <label className="block text-[15px] font-bold text-[#00008A] mb-3">Loại hình</label>
-                  <div className="relative">
-                    <select
-                      value={discoveryType}
-                      onChange={handleTypeChange}
-                      className="w-full appearance-none rounded-xl border-none bg-white px-5 py-3.5 text-sm font-bold text-gray-800 shadow-sm outline-none ring-1 ring-white focus:ring-2 focus:ring-[#00008A]/30 transition-all cursor-pointer"
-                    >
-                      <option value="places">Địa điểm</option>
-                      <option value="events">Sự kiện</option>
-                    </select>
-                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-                      <ChevronDown size={18} className="text-[#00008A]" />
+        <div ref={resultsRef} className="scroll-mt-10">
+          {isSearched ? (
+            <section className="mx-auto mt-16 max-w-7xl px-4 py-8 flex flex-col md:flex-row gap-8 min-h-[50vh]">
+              {/* Sidebar */}
+              <div className="w-full md:w-64 flex-shrink-0">
+                <div className="bg-[#E0FAFA] rounded-3xl p-6 flex flex-col gap-6 sticky top-24">
+                  <div>
+                    <label className="block text-[15px] font-bold text-[#00008A] mb-3">Loại hình</label>
+                    <div className="relative">
+                      <select
+                        value={discoveryType}
+                        onChange={handleTypeChange}
+                        className="w-full appearance-none rounded-xl border-none bg-white px-5 py-3.5 text-sm font-bold text-gray-800 shadow-sm outline-none ring-1 ring-white focus:ring-2 focus:ring-[#00008A]/30 transition-all cursor-pointer"
+                      >
+                        <option value="places">Địa điểm</option>
+                        <option value="events">Sự kiện</option>
+                      </select>
+                      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+                        <ChevronDown size={18} className="text-[#00008A]" />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[15px] font-bold text-[#00008A] mb-3">Đánh giá</label>
+                    <div className="relative">
+                      <select
+                        value={currentRating || ''}
+                        onChange={handleRatingChange}
+                        className="w-full appearance-none rounded-xl border-none bg-white px-5 py-3.5 text-sm font-bold text-gray-800 shadow-sm outline-none ring-1 ring-white focus:ring-2 focus:ring-[#00008A]/30 transition-all cursor-pointer"
+                      >
+                        <option value="">Tất cả</option>
+                        <option value="5">5 ⭐</option>
+                        <option value="4">4 ⭐</option>
+                        <option value="3">3 ⭐</option>
+                        <option value="2">2 ⭐</option>
+                        <option value="1">1 ⭐</option>
+                      </select>
+                      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+                        <ChevronDown size={18} className="text-[#00008A]" />
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-[15px] font-bold text-[#00008A] mb-3">Đánh giá</label>
-                  <div className="relative">
-                    <select
-                      value={currentRating || ''}
-                      onChange={handleRatingChange}
-                      className="w-full appearance-none rounded-xl border-none bg-white px-5 py-3.5 text-sm font-bold text-gray-800 shadow-sm outline-none ring-1 ring-white focus:ring-2 focus:ring-[#00008A]/30 transition-all cursor-pointer"
-                    >
-                      <option value="">Tất cả</option>
-                      <option value="5">5 ⭐</option>
-                      <option value="4">4 ⭐</option>
-                      <option value="3">3 ⭐</option>
-                      <option value="2">2 ⭐</option>
-                      <option value="1">1 ⭐</option>
-                    </select>
-                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-                      <ChevronDown size={18} className="text-[#00008A]" />
-                    </div>
+              </div>
+
+              {/* Grid */}
+              <div className="flex-1">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 min-h-[500px] content-start">
+                  {discoveryLoading ? (
+                    Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
+                  ) : discoveryItems.length > 0 ? (
+                    discoveryItems.map((place, i) => <DestinationCard key={place.id || `discovery-${i}`} place={place} index={i} type="places" resourceType={discoveryType === 'places' ? 0 : 1} />)
+                  ) : (
+                    <div className="col-span-full py-12 text-center text-gray-500 font-medium">Không tìm thấy kết quả nào.</div>
+                  )}
+                  {!discoveryLoading && renderPagination()}
+                </div>
+              </div>
+            </section>
+          ) : (
+            <>
+              {/* Nào mình cùng vi vu — Page 1 */}
+              <section className="mx-auto mt-16 max-w-6xl px-4 py-8">
+                <div className="mb-12 flex items-center justify-center gap-4">
+                  <img src={text2Img} alt="Nào mình cùng vi vu" className="h-16 object-contain drop-shadow-md" />
+                  <div className="animate-bounce">
+                    <img src={chatbotImg} alt="chatbot" className="h-16 w-16 object-contain" />
                   </div>
                 </div>
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
+                  {loadingMix
+                    ? Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)
+                    : recommendMix.slice(0, 12).map((item, i) => {
+                      const bestSellerTags = [
+                        "Đi ngay thôi",
+                        "Xách balo lên",
+                        "Đi liền kẻo lỡ",
+                        "Chốt lịch ngay",
+                        "Lên đường thôi"
+                      ];
 
-            {/* Grid */}
-            <div className="flex-1">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 min-h-[500px] content-start">
-                {discoveryLoading ? (
-                  Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
-                ) : discoveryItems.length > 0 ? (
-                  discoveryItems.map((place, i) => <DestinationCard key={place.id || `discovery-${i}`} place={place} index={i} type="places" resourceType={discoveryType === 'places' ? 0 : 1} />)
-                ) : (
-                  <div className="col-span-full py-12 text-center text-gray-500 font-medium">Không tìm thấy kết quả nào.</div>
-                )}
-                {!discoveryLoading && renderPagination()}
-              </div>
-            </div>
-          </section>
-        ) : (
-          <>
-            {/* Nào mình cùng vi vu — Page 1 */}
-            <section className="mx-auto mt-16 max-w-6xl px-4 py-8">
-              <div className="mb-12 flex items-center justify-center gap-4">
-                <img src={text2Img} alt="Nào mình cùng vi vu" className="h-16 object-contain drop-shadow-md" />
-                <div className="animate-bounce">
-                  <img src={chatbotImg} alt="chatbot" className="h-16 w-16 object-contain" />
+                      // Map RecommendMixItem to DestinationCard compatible structure
+                      const adaptedPlace: any = {
+                        id: item.resourceId,
+                        title: item.title,
+                        description: item.description,
+                        averageRating: item.averageRating,
+                        images: item.primaryImageUrl ? [{ url: item.primaryImageUrl }] : [],
+                        tags: item.tags || []
+                      };
+
+                      return (
+                        <DestinationCard
+                          key={item.resourceId || `recommend-${i}`}
+                          place={adaptedPlace}
+                          index={i}
+                          type="places"
+                          resourceType={item.resourceType}
+                          ribbonTag={i < 5 ? bestSellerTags[i] : undefined}
+                        />
+                      );
+                    })
+                  }
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-                {loadingMix
-                  ? Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)
-                  : recommendMix.slice(0, 12).map((item, i) => {
-                    const bestSellerTags = [
-                      "Đi ngay thôi",
-                      "Xách balo lên",
-                      "Đi liền kẻo lỡ",
-                      "Chốt lịch ngay",
-                      "Lên đường thôi"
-                    ];
+              </section>
 
-                    // Map RecommendMixItem to DestinationCard compatible structure
-                    const adaptedPlace: any = {
-                      id: item.resourceId,
-                      title: item.title,
-                      description: "",
-                      averageRating: item.averageRating,
-                      images: item.primaryImageUrl ? [{ url: item.primaryImageUrl }] : [],
-                      tags: []
-                    };
+              {/* Airplane Info Section */}
+              <section className="relative mt-8 mb-8 overflow-hidden py-32 sm:py-40">
+                <div
+                  className="absolute inset-0 bg-gradient-to-b from-white to-[#D6FFFC]"
+                  style={{ clipPath: 'polygon(0% 50%, 8% 0%, 92% 0%, 100% 50%, 92% 100%, 8% 100%)' }}
+                ></div>
 
-                    return (
-                      <DestinationCard
-                        key={item.resourceId || `recommend-${i}`}
-                        place={adaptedPlace}
-                        index={i}
-                        type="places"
-                        resourceType={item.resourceType}
-                        ribbonTag={i < 5 ? bestSellerTags[i] : undefined}
-                      />
-                    );
-                  })
-                }
-              </div>
-            </section>
-
-            {/* Airplane Info Section */}
-            <section className="relative mt-8 mb-8 overflow-hidden py-32 sm:py-40">
-              <div
-                className="absolute inset-0 bg-gradient-to-b from-white to-[#D6FFFC]"
-                style={{ clipPath: 'polygon(0% 50%, 8% 0%, 92% 0%, 100% 50%, 92% 100%, 8% 100%)' }}
-              ></div>
-
-              <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-4 md:flex-row md:gap-8">
-                <div className="w-full flex-1 mb-8 md:mb-0 transform transition-transform duration-1000 hover:scale-105">
-                  <img src={planeImg} alt="Airplane graphic" className="w-[130%] -ml-[15%] scale-125 drop-shadow-2xl md:w-[150%] md:-ml-[25%]" />
+                <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-4 md:flex-row md:gap-8">
+                  <div className="w-full flex-1 mb-8 md:mb-0 transform transition-transform duration-1000 hover:scale-105">
+                    <img src={planeImg} alt="Airplane graphic" className="w-[130%] -ml-[15%] scale-125 drop-shadow-2xl md:w-[150%] md:-ml-[25%]" />
+                  </div>
+                  <div className="flex-1 px-4 md:pl-12">
+                    <p className="text-left font-medium text-[#00008A] text-lg md:text-xl leading-[1.8] max-w-md">
+                      Tại đây, bạn có thể khám phá các địa điểm nổi bật, trải nghiệm văn hóa – ẩm thực đặc sắc, xem đánh giá thực tế từ cộng đồng và dễ dàng lựa chọn hành trình phù hợp với sở thích của mình.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 px-4 md:pl-12">
-                  <p className="text-left font-medium text-[#00008A] text-lg md:text-xl leading-[1.8] max-w-md">
-                    Tại đây, bạn có thể khám phá các địa điểm nổi bật, trải nghiệm văn hóa – ẩm thực đặc sắc, xem đánh giá thực tế từ cộng đồng và dễ dàng lựa chọn hành trình phù hợp với sở thích của mình.
-                  </p>
-                </div>
-              </div>
-            </section>
+              </section>
 
-            {/* Bạn thích trải nghiệm — Page 2 */}
-            <section className="mx-auto mt-8 max-w-6xl px-4 py-16">
-              <div className="mb-12 flex justify-center">
-                <img src={text3Img} alt="Bạn thích trải nghiệm" className="h-16 object-contain drop-shadow-md" />
-              </div>
-              <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-                {loading2
-                  ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-                  : page2.map((place, i) => <DestinationCard key={place.id} place={place} index={i} type="places" resourceType={0} />)
-                }
-              </div>
-            </section>
-          </>
-        )}
+              {/* Bạn thích trải nghiệm — Page 2 */}
+              <section className="mx-auto mt-8 max-w-6xl px-4 py-16">
+                <div className="mb-12 flex justify-center">
+                  <img src={text3Img} alt="Bạn thích trải nghiệm" className="h-16 object-contain drop-shadow-md" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
+                  {loading2
+                    ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+                    : page2.map((place, i) => <DestinationCard key={place.id} place={place} index={i} type="places" resourceType={0} />)
+                  }
+                </div>
+              </section>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <Footer />
+
+        {/* Chatbot Widget — fixed bottom-right over all content */}
+        <ChatbotWidget />
+        <CommunityChatWidget />
       </div>
-
-      {/* Footer */}
-      <Footer />
-
-      {/* Chatbot Widget — fixed bottom-right over all content */}
-      <ChatbotWidget />
-      <CommunityChatWidget />
+      );
     </div>
-  );
+  )
 }
