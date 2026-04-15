@@ -790,7 +790,7 @@ export function HomePage() {
       <section className="px-3 pb-10 pt-4 sm:px-6 sm:pt-6">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-6">
           {/* Header */}
-          <header className="flex flex-col gap-3 rounded-2xl bg-white/95 px-4 py-3 shadow-md ring-1 ring-[#00008A]/10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <header className="flex flex-col gap-3 bg-white/95 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             {/* Left: Logo */}
             <button onClick={handleGoHome} className="flex items-center justify-center sm:justify-start">
               <img
