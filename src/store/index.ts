@@ -25,6 +25,7 @@ import eventReducer from './slice/EventSlice';
 import discoveryTagReducer from './slice/DiscoveryTagSlice';
 import tourismReducer from './slice/TourismSlice';
 import communityReducer from './slice/CommunitySlice';
+import uiWidgetReducer from './slice/UIWidgetSlice';
 
 export const store = configureStore({
   reducer: {
@@ -54,6 +55,7 @@ export const store = configureStore({
     discoveryTag: discoveryTagReducer,
     tourism: tourismReducer,
     community: communityReducer,
+    uiWidget: uiWidgetReducer,
   },
 });
 

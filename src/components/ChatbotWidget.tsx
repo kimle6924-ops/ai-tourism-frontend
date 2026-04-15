@@ -5,11 +5,14 @@ import type { AppDispatch, RootState } from '../store';
 import { addUserMessage, askChatbotThunk } from '../store/slice/ChatbotGeminiSlice';
 import chatbotImg from '../assets/images/image_chatbot.png';
 import profileImg from '../assets/images/image_profile.png';
+import { setActiveWidget } from '../store/slice/UIWidgetSlice';
 
 export function ChatbotWidget() {
   const dispatch = useDispatch<AppDispatch>();
   const { messages, loading } = useSelector((s: RootState) => s.chatbot);
-  const [open, setOpen] = useState(false);
+  const activeWidget = useSelector((s: RootState) => s.uiWidget.activeWidget);
+  const open = activeWidget === 'chatbot';
+  const setOpen = (isOpen: boolean) => dispatch(setActiveWidget(isOpen ? 'chatbot' : null));
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +62,7 @@ export function ChatbotWidget() {
   return (
     <>
       {/* Floating chatbot button + tooltip */}
-      <div className={`fixed bottom-6 right-6 z-50 flex flex-col items-center gap-2 transition-all duration-300 ${open ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`fixed bottom-6 right-6 z-50 flex flex-col items-center gap-2 transition-all duration-300 ${open || activeWidget === 'community' ? 'opacity-0 scale-0 pointer-events-none' : 'opacity-100 scale-100'}`}>
         {/* Tooltip bubble */}
         <div
           className={`relative flex items-center gap-1.5 rounded-2xl rounded-br-sm bg-white px-3 py-2 text-xs font-semibold text-[#00008A] shadow-lg border border-[#FFD700]/60 transition-all duration-300 ${showTooltip ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
@@ -82,7 +85,7 @@ export function ChatbotWidget() {
 
       {/* Chat panel */}
       <div
-        className={`fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-300 origin-bottom-right ${open
+        className={`fixed bottom-6 right-6 z-[60] flex flex-col overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-300 origin-bottom-right ${open
           ? 'w-[420px] h-[600px] scale-100 opacity-100'
           : 'w-16 h-16 scale-0 opacity-0 pointer-events-none'
           }`}

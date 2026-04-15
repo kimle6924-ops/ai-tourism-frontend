@@ -1,4 +1,4 @@
-﻿import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { X, Send, Image as ImageIcon, Users } from 'lucide-react';
@@ -9,6 +9,7 @@ import {
     fetchCommunityGroupThunk,
     fetchCommunityPostsThunk,
 } from '../store/slice/CommunitySlice';
+import { setActiveWidget } from '../store/slice/UIWidgetSlice';
 import profileImg from '../assets/images/image_profile.png';
 
 const PAGE_SIZE = 20;
@@ -20,7 +21,9 @@ export function CommunityChatWidget() {
     const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
 
-    const [open, setOpen] = useState(false);
+    const activeWidget = useSelector((state: RootState) => state.uiWidget.activeWidget);
+    const open = activeWidget === 'community';
+    const setOpen = (isOpen: boolean) => dispatch(setActiveWidget(isOpen ? 'community' : null));
     const [input, setInput] = useState('');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -84,9 +87,9 @@ export function CommunityChatWidget() {
 
     return (
         <>
-            <div className={`fixed bottom-[130px] right-6 z-50 flex flex-col items-center gap-2 transition-all duration-300 ${open ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <div className={`fixed bottom-[130px] right-6 z-50 flex flex-col items-center gap-2 transition-all duration-300 ${open || activeWidget === 'chatbot' ? 'opacity-0 scale-0 pointer-events-none' : 'opacity-100 scale-100'}`}>
                 <div className="relative flex items-center gap-1.5 rounded-2xl rounded-br-sm bg-white px-3 py-2 text-xs font-semibold text-indigo-600 shadow-lg border border-indigo-100">
-                    <span>{group?.name ?? 'Cộng đồng'}</span>
+                    <span>{'Cộng đồng'}</span>
                     <span className="absolute -bottom-2 right-4 h-0 w-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-white" />
                 </div>
                 <button
@@ -99,7 +102,7 @@ export function CommunityChatWidget() {
             </div>
 
             <div
-                className={`fixed bottom-[130px] right-6 z-50 flex flex-col overflow-hidden rounded-3xl bg-[#f8fafc] shadow-2xl transition-all duration-300 origin-bottom-right ${open
+                className={`fixed ${open ? 'bottom-6' : 'bottom-[130px]'} right-6 z-[60] flex flex-col overflow-hidden rounded-3xl bg-[#f8fafc] shadow-2xl transition-all duration-300 origin-bottom-right ${open
                     ? 'w-[380px] h-[600px] max-h-[80vh] scale-100 opacity-100'
                     : 'w-16 h-16 scale-0 opacity-0 pointer-events-none'
                     }`}
