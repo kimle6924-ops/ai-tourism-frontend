@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { fetchDiscoveryTagsThunk } from '../store/slice/DiscoveryTagSlice';
-import { fetchTourismPlacesThunk, setSelectedTags } from '../store/slice/TourismSlice';
+import { fetchTourismPlacesThunk, fetchRecommendedTourismPlacesThunk, setSelectedTags } from '../store/slice/TourismSlice';
 import { Loader2, Tag, X, Filter } from 'lucide-react';
 import MainHeader from '../components/MainHeader';
 import bannerImg from '../assets/images/banner.jpg';
@@ -22,11 +22,19 @@ export default function TourismPage() {
 
   useEffect(() => {
     dispatch(fetchDiscoveryTagsThunk());
-    dispatch(fetchTourismPlacesThunk({ tags: selectedTags, PageNumber: 1 }));
+    if (selectedTags.length > 0) {
+      dispatch(fetchTourismPlacesThunk({ tags: selectedTags, PageNumber: 1, PageSize: 16 }));
+    } else {
+      dispatch(fetchRecommendedTourismPlacesThunk({ MaxDistanceKm: 3000, PageNumber: 1, PageSize: 16 }));
+    }
   }, [dispatch]);
 
   const handlePageChange = (page: number) => {
-    dispatch(fetchTourismPlacesThunk({ tags: selectedTags, PageNumber: page }));
+    if (selectedTags.length > 0) {
+      dispatch(fetchTourismPlacesThunk({ tags: selectedTags, PageNumber: page, PageSize: 16 }));
+    } else {
+      dispatch(fetchRecommendedTourismPlacesThunk({ MaxDistanceKm: 3000, PageNumber: page, PageSize: 16 }));
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -41,7 +49,11 @@ export default function TourismPage() {
 
   const handleApplyTags = () => {
     dispatch(setSelectedTags(tempTags));
-    dispatch(fetchTourismPlacesThunk({ tags: tempTags, PageNumber: 1 }));
+    if (tempTags.length > 0) {
+      dispatch(fetchTourismPlacesThunk({ tags: tempTags, PageNumber: 1, PageSize: 16 }));
+    } else {
+      dispatch(fetchRecommendedTourismPlacesThunk({ MaxDistanceKm: 3000, PageNumber: 1, PageSize: 16 }));
+    }
     setIsDialogOpen(false);
     resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -53,7 +65,11 @@ export default function TourismPage() {
   const removeTag = (tag: string) => {
     const newTags = selectedTags.filter(t => t !== tag);
     dispatch(setSelectedTags(newTags));
-    dispatch(fetchTourismPlacesThunk({ tags: newTags, PageNumber: 1 }));
+    if (newTags.length > 0) {
+      dispatch(fetchTourismPlacesThunk({ tags: newTags, PageNumber: 1, PageSize: 16 }));
+    } else {
+      dispatch(fetchRecommendedTourismPlacesThunk({ MaxDistanceKm: 3000, PageNumber: 1, PageSize: 16 }));
+    }
   };
 
   const renderPagination = () => {
@@ -155,7 +171,9 @@ export default function TourismPage() {
         <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <div className="h-8 w-1 rounded-full bg-orange-500" />
-                <h2 className="text-2xl font-bold text-[#00008A]">Kết quả khám phá</h2>
+                <h2 className="text-2xl font-bold text-[#00008A]">
+                  {selectedTags.length > 0 ? "Kết quả khám phá" : "Gợi ý địa điểm gần bạn"}
+                </h2>
             </div>
             {!loading && totalCount > 0 && (
                 <span className="text-sm font-bold text-gray-500 bg-gray-100 border border-gray-200 px-4 py-1.5 rounded-full shadow-inner">

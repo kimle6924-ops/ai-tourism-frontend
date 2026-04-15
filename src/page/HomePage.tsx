@@ -17,6 +17,7 @@ import { updateLocationThunk } from '../store/slice/LocationUserSlice';
 import { ChatbotWidget } from '../components/ChatbotWidget';
 import { CommunityChatWidget } from '../components/CommunityChatWidget';
 import Footer from '../components/Footer';
+import MainHeader from '../components/MainHeader';
 import ProfileDropdown from '../components/ProfileDropdown';
 import bannerImg from '../assets/images/banner.jpg';
 import planeImg from '../assets/images/plane.png';
@@ -319,26 +320,7 @@ export function HomePage() {
         <div className="relative z-10 mx-auto flex h-full min-h-screen max-w-7xl flex-col items-center px-4 pt-8">
 
           {/* Header */}
-          <header className="flex w-full items-center justify-between px-2 sm:px-8">
-            {/* Left: Logo */}
-            <button onClick={handleGoHome} className="flex items-center">
-              <img
-                src={logoImg}
-                alt="vivu logo"
-                className="h-20 object-contain drop-shadow-md"
-              />
-            </button>
-
-            {/* Right: Menu + User */}
-            <div className="flex items-center gap-6 font-bold text-[#002B6B]">
-              <button onClick={handleGoHome} className="cursor-pointer hover:text-blue-600">Trang chủ</button>
-              <Link to="/tourism" className="cursor-pointer hover:text-blue-600">Du lịch</Link>
-              <Link to="/events" className="cursor-pointer hover:text-blue-600">Sự Kiện</Link>
-              <Link to="/ranks" className="cursor-pointer hover:text-blue-600">Xếp hạng</Link>
-              {/* User Icon */}
-              <ProfileDropdown />
-            </div>
-          </header>
+          <MainHeader transparent />
 
           {/* Main Content */}
           <main className="flex w-full flex-1 flex-col items-center justify-center pb-32">
