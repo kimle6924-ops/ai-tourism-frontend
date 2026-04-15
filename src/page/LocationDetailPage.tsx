@@ -306,59 +306,61 @@ export function LocationDetailPage({ type, id, resourceType }: { type: 'places' 
                             </div>
 
                             {/* Reviews list */}
-                            <div className="flex-1 flex flex-col space-y-4">
-                                {reviews.length === 0 && !reviewsLoading && (
-                                    <div className="text-center py-10 bg-white/50 rounded-2xl border border-dashed border-gray-300">
-                                        <p className="text-sm text-gray-500 font-medium">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
-                                    </div>
-                                )}
-                                {reviews.map((rev: any) => (
-                                    <div key={rev.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            {rev.userAvatarUrl ? (
-                                                <div className="w-11 h-11 rounded-full overflow-hidden shadow-inner flex-shrink-0">
-                                                    <img src={rev.userAvatarUrl} alt={rev.userFullName || 'User'} className="w-full h-full object-cover" />
+                            <div className="flex-1 overflow-y-auto pr-2 max-h-[600px] scrollbar-hide hover:scrollbar-default transition-all">
+                                <div className="flex flex-col space-y-4">
+                                    {reviews.length === 0 && !reviewsLoading && (
+                                        <div className="text-center py-10 bg-white/50 rounded-2xl border border-dashed border-gray-300">
+                                            <p className="text-sm text-gray-500 font-medium">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+                                        </div>
+                                    )}
+                                    {reviews.map((rev: any) => (
+                                        <div key={rev.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                {rev.userAvatarUrl ? (
+                                                    <div className="w-11 h-11 rounded-full overflow-hidden shadow-inner flex-shrink-0">
+                                                        <img src={rev.userAvatarUrl} alt={rev.userFullName || 'User'} className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#E0FAFA] to-blue-200 flex items-center justify-center text-[#00008A] font-bold shadow-inner flex-shrink-0">
+                                                        <User size={20} />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <p className="font-extrabold text-sm text-[#00008A]">{rev.userFullName || 'Người dùng Ẩn danh'}</p>
+                                                    <div className="flex items-center gap-1 mt-0.5">
+                                                        {[1, 2, 3, 4, 5].map(star => (
+                                                            <Star key={star} size={11} fill={star <= rev.rating ? '#FFD700' : 'transparent'} className={star <= rev.rating ? 'text-[#FFD700]' : 'text-gray-200'} />
+                                                        ))}
+                                                        <span className="text-[11px] font-bold text-yellow-600 ml-1.5">{rev.rating}.0</span>
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#E0FAFA] to-blue-200 flex items-center justify-center text-[#00008A] font-bold shadow-inner flex-shrink-0">
-                                                    <User size={20} />
+                                                <span className="ml-auto text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</span>
+                                            </div>
+                                            {rev.comment && (
+                                                <p className="text-[14px] text-gray-700 leading-relaxed ml-14 mb-2">
+                                                    {rev.comment}
+                                                </p>
+                                            )}
+                                            {rev.imageUrl && (
+                                                <div className="ml-14 mt-2 h-32 w-48 rounded-xl overflow-hidden border border-gray-200">
+                                                    <img src={rev.imageUrl} alt="Review" className="w-full h-full object-cover" />
                                                 </div>
                                             )}
-                                            <div>
-                                                <p className="font-extrabold text-sm text-[#00008A]">{rev.userFullName || 'Người dùng Ẩn danh'}</p>
-                                                <div className="flex items-center gap-1 mt-0.5">
-                                                    {[1, 2, 3, 4, 5].map(star => (
-                                                        <Star key={star} size={11} fill={star <= rev.rating ? '#FFD700' : 'transparent'} className={star <= rev.rating ? 'text-[#FFD700]' : 'text-gray-200'} />
-                                                    ))}
-                                                    <span className="text-[11px] font-bold text-yellow-600 ml-1.5">{rev.rating}.0</span>
-                                                </div>
-                                            </div>
-                                            <span className="ml-auto text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</span>
                                         </div>
-                                        {rev.comment && (
-                                            <p className="text-[14px] text-gray-700 leading-relaxed ml-14 mb-2">
-                                                {rev.comment}
-                                            </p>
-                                        )}
-                                        {rev.imageUrl && (
-                                            <div className="ml-14 mt-2 h-32 w-48 rounded-xl overflow-hidden border border-gray-200">
-                                                <img src={rev.imageUrl} alt="Review" className="w-full h-full object-cover" />
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                                    ))}
 
-                                {reviewsLoading && (
-                                    <div className="py-6 flex justify-center">
-                                        <div className="w-8 h-8 border-4 border-[#FFD700] border-t-white rounded-full animate-spin drop-shadow-md"></div>
-                                    </div>
-                                )}
+                                    {reviewsLoading && (
+                                        <div className="py-6 flex justify-center">
+                                            <div className="w-8 h-8 border-4 border-[#FFD700] border-t-white rounded-full animate-spin drop-shadow-md"></div>
+                                        </div>
+                                    )}
 
-                                {currentPage < totalPages && !reviewsLoading && (
-                                    <button onClick={handleLoadMore} className="w-full py-3 mt-2 bg-white rounded-xl border-2 border-dashed border-[#00008A]/30 text-sm font-bold text-[#00008A] hover:bg-[#00008A] hover:text-white transition-all">
-                                        Xem thêm đánh giá cũ hơn
-                                    </button>
-                                )}
+                                    {currentPage < totalPages && !reviewsLoading && (
+                                        <button onClick={handleLoadMore} className="w-full py-3 mt-2 bg-white rounded-xl border-2 border-dashed border-[#00008A]/30 text-sm font-bold text-[#00008A] hover:bg-[#00008A] hover:text-white transition-all">
+                                            Xem thêm đánh giá cũ hơn
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                         </div>
