@@ -1,5 +1,5 @@
 import axiosInstance from '../utils/headerApi';
-import type { MediaAsset, PaginatedResponse, ApiResponse } from './AdminPlaceService';
+import type { MediaAsset, PaginatedResponse, ApiResponse, AdminPlaceListParams } from './AdminPlaceService';
 
 export interface EventItem {
     id: string;
@@ -53,9 +53,24 @@ export interface UpdateEventPayload extends CreateEventPayload {
 }
 
 const AdminEventService = {
-    getAll: async (page: number = 1, size: number = 10): Promise<ApiResponse<PaginatedResponse<EventItem>>> => {
+    getAll: async ({
+        page = 1,
+        size = 10,
+        provinceId,
+        wardId,
+        q,
+    }: AdminPlaceListParams = {}): Promise<ApiResponse<PaginatedResponse<EventItem>>> => {
         const response = await axiosInstance.get<ApiResponse<PaginatedResponse<EventItem>>>(
-            `/api/events/all?PageNumber=${page}&PageSize=${size}`
+            '/api/events/all',
+            {
+                params: {
+                    PageNumber: page,
+                    PageSize: size,
+                    ProvinceId: provinceId || undefined,
+                    WardId: wardId || undefined,
+                    Q: q?.trim() || undefined,
+                },
+            }
         );
         return response.data;
     },

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import AdminPlaceService, { type PlaceItem, type PaginatedResponse, type CreatePlacePayload, type UpdatePlacePayload } from '../../services/AdminPlaceService';
+import AdminPlaceService, { type PlaceItem, type PaginatedResponse, type CreatePlacePayload, type UpdatePlacePayload, type AdminPlaceListParams } from '../../services/AdminPlaceService';
 
 interface AdminPlaceState {
     places: PlaceItem[];
@@ -25,9 +25,9 @@ const initialState: AdminPlaceState = {
 
 export const fetchAdminPlacesThunk = createAsyncThunk(
     'adminPlaces/fetch',
-    async ({ page, size }: { page: number; size: number }, { rejectWithValue }) => {
+    async (params: AdminPlaceListParams, { rejectWithValue }) => {
         try {
-            const res = await AdminPlaceService.getAll(page, size);
+            const res = await AdminPlaceService.getAll(params);
             if (!res.success) return rejectWithValue(res.error || 'Lỗi lấy danh sách địa điểm');
             return res.data;
         } catch (err: any) {

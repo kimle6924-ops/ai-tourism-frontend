@@ -61,10 +61,33 @@ export interface ApiResponse<T> {
     errors: any;
 }
 
+export interface AdminPlaceListParams {
+    page?: number;
+    size?: number;
+    provinceId?: string;
+    wardId?: string;
+    q?: string;
+}
+
 const AdminPlaceService = {
-    getAll: async (page: number = 1, size: number = 10): Promise<ApiResponse<PaginatedResponse<PlaceItem>>> => {
+    getAll: async ({
+        page = 1,
+        size = 10,
+        provinceId,
+        wardId,
+        q,
+    }: AdminPlaceListParams = {}): Promise<ApiResponse<PaginatedResponse<PlaceItem>>> => {
         const response = await axiosInstance.get<ApiResponse<PaginatedResponse<PlaceItem>>>(
-            `/api/places/all?PageNumber=${page}&PageSize=${size}`
+            '/api/places/all',
+            {
+                params: {
+                    PageNumber: page,
+                    PageSize: size,
+                    ProvinceId: provinceId || undefined,
+                    WardId: wardId || undefined,
+                    Q: q?.trim() || undefined,
+                },
+            }
         );
         return response.data;
     },

@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import AdminEventService, { type EventItem, type CreateEventPayload, type UpdateEventPayload } from '../../services/AdminEventService';
-import type { PaginatedResponse } from '../../services/AdminPlaceService';
+import type { PaginatedResponse, AdminPlaceListParams } from '../../services/AdminPlaceService';
 
 interface AdminEventState {
     events: EventItem[];
@@ -26,9 +26,9 @@ const initialState: AdminEventState = {
 
 export const fetchAdminEventsThunk = createAsyncThunk(
     'adminEvents/fetch',
-    async ({ page, size }: { page: number; size: number }, { rejectWithValue }) => {
+    async (params: AdminPlaceListParams, { rejectWithValue }) => {
         try {
-            const res = await AdminEventService.getAll(page, size);
+            const res = await AdminEventService.getAll(params);
             if (!res.success) return rejectWithValue(res.error || 'Lỗi lấy danh sách sự kiện');
             return res.data;
         } catch (err: any) {

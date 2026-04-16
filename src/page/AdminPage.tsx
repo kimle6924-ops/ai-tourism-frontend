@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import ProfileDropdown from '../components/ProfileDropdown';
 import type { AppDispatch, RootState } from '../store';
 import { fetchAdminUsersThunk, lockUserThunk, unlockUserThunk, approveUserThunk } from '../store/slice/AdminManagerUserSlice';
@@ -13,6 +14,7 @@ import type { PlaceItem, CreatePlacePayload } from '../services/AdminPlaceServic
 import type { EventItem, CreateEventPayload, UpdateEventPayload } from '../services/AdminEventService';
 import type { ResourceType } from '../services/ModerationService';
 import CategoryService, { type Category } from '../services/CategoryService';
+import AdministrativeUnitService, { type AdministrativeUnit } from '../services/AdministrativeUnitService';
 import Swal from 'sweetalert2';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -27,11 +29,14 @@ import Pagination from '../components/shared/Pagination';
 import { formatDateTime, categoryTypeLabel } from '../components/shared/utils';
 
 type AdminTab = 'overview' | 'users' | 'places' | 'events' | 'moderation' | 'categories' | 'reviews';
+const adminRouteApi = getRouteApi('/admin');
 
 // ─── Main Admin Page ─────────────────────────────────
 export function AdminPage() {
     const dispatch = useDispatch<AppDispatch>();
-    const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+    const navigate = useNavigate({ from: '/admin' });
+    const routeSearch = adminRouteApi.useSearch();
+    const [activeTab, setActiveTab] = useState<AdminTab>(routeSearch.tab as AdminTab);
 
     // User Management State
     const { users, loading: usersLoading, totalPages: userTotalPages, pageNumber: userPageNumber, actionLoading: userActionLoading } = useSelector((state: RootState) => state.adminUsers);
@@ -62,6 +67,9 @@ export function AdminPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
+    const [provinces, setProvinces] = useState<AdministrativeUnit[]>([]);
+    const [wards, setWards] = useState<AdministrativeUnit[]>([]);
+    const [titleQueryInput, setTitleQueryInput] = useState(routeSearch.q);
 
     const renderEventTime = (ev: any) => {
         if (ev.scheduleType === 1) {
@@ -88,6 +96,11 @@ export function AdminPage() {
         );
     };
     const [searchQuery, setSearchQuery] = useState('');
+    const selectedProvinceId = routeSearch.provinceId;
+    const selectedWardId = routeSearch.wardId;
+    const titleQuery = routeSearch.q.trim();
+    const managementPage = routeSearch.page;
+    const isManagementTab = activeTab === 'places' || activeTab === 'events';
 
     // Category form fields
     const [catName, setCatName] = useState('');
@@ -97,51 +110,169 @@ export function AdminPage() {
 
     const isActionLoading = userActionLoading || placeActionLoading || eventActionLoading || moderationActionLoading || categoryActionLoading || reviewActionLoading;
 
-    // Reset search query on tab change
     useEffect(() => {
-        setSearchQuery('');
-    }, [activeTab]);
+        setActiveTab(routeSearch.tab as AdminTab);
+    }, [routeSearch.tab]);
+
+    useEffect(() => {
+        setTitleQueryInput(routeSearch.q);
+    }, [routeSearch.q]);
+
+    useEffect(() => {
+        if (!isManagementTab) setSearchQuery('');
+    }, [isManagementTab]);
+
+    useEffect(() => {
+        AdministrativeUnitService.getByLevel(0).then((res) => {
+            if (res.success) setProvinces(res.data);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!selectedProvinceId) {
+            setWards([]);
+            return;
+        }
+
+        AdministrativeUnitService.getChildren(selectedProvinceId).then((res) => {
+            if (!res.success) {
+                setWards([]);
+                return;
+            }
+
+            const nextWards = res.data.filter((unit) => unit.level === 1);
+            setWards(nextWards);
+
+            if (selectedWardId && !nextWards.some((unit) => unit.id === selectedWardId)) {
+                navigate({
+                    search: (prev) => ({ ...prev, wardId: '', page: 1 }),
+                    replace: true,
+                });
+            }
+        });
+    }, [navigate, selectedProvinceId, selectedWardId]);
+
+    useEffect(() => {
+        if (!isManagementTab || titleQueryInput === routeSearch.q) return;
+
+        const timeout = window.setTimeout(() => {
+            navigate({
+                search: (prev) => ({ ...prev, q: titleQueryInput, page: 1 }),
+                replace: true,
+            });
+        }, 400);
+
+        return () => window.clearTimeout(timeout);
+    }, [activeTab, isManagementTab, navigate, routeSearch.q, titleQueryInput]);
 
     // Load data on tab/filter change or search
     useEffect(() => {
-        const delaySearch = setTimeout(() => {
-            const isSearch = searchQuery.trim() !== '';
+        const isSearch = searchQuery.trim() !== '';
 
-            if (activeTab === 'users') {
-                dispatch(fetchAdminUsersThunk({ page: 1, size: isSearch ? 1000 : 10 }));
-            } else if (activeTab === 'overview') {
-                if (!isSearch) dispatch(fetchOverviewStatsThunk({}));
-            } else if (activeTab === 'places') {
-                dispatch(fetchAdminPlacesThunk({ page: 1, size: isSearch ? 1000 : 10 }));
-                if (!isSearch && categories.length === 0) {
-                    CategoryService.getCategories(1, 100).then(res => {
-                        if (res.success) setCategories(res.data.items);
-                    });
-                }
-            } else if (activeTab === 'events') {
-                dispatch(fetchAdminEventsThunk({ page: 1, size: isSearch ? 1000 : 10 }));
-                if (!isSearch && categories.length === 0) {
-                    CategoryService.getCategories(1, 100).then(res => {
-                        if (res.success) setCategories(res.data.items);
-                    });
-                }
-            } else if (activeTab === 'moderation') {
-                dispatch(fetchPendingPlacesThunk({ page: 1, size: isSearch ? 1000 : 50 }));
-                dispatch(fetchPendingEventsThunk({ page: 1, size: isSearch ? 1000 : 50 }));
-            } else if (activeTab === 'categories') {
-                dispatch(fetchAdminCategoriesThunk({ page: 1, size: isSearch ? 1000 : 20 }));
-            } else if (activeTab === 'reviews') {
-                dispatch(fetchAdminReviewsThunk({ page: 1, size: isSearch ? 1000 : 10, status: reviewStatusFilter }));
+        if (activeTab === 'users') {
+            dispatch(fetchAdminUsersThunk({ page: 1, size: isSearch ? 1000 : 10 }));
+        } else if (activeTab === 'overview') {
+            if (!isSearch) dispatch(fetchOverviewStatsThunk({}));
+        } else if (activeTab === 'places') {
+            dispatch(fetchAdminPlacesThunk({
+                page: managementPage,
+                size: 10,
+                provinceId: selectedProvinceId || undefined,
+                wardId: selectedWardId || undefined,
+                q: titleQuery || undefined,
+            }));
+            if (categories.length === 0) {
+                CategoryService.getCategories(1, 100).then(res => {
+                    if (res.success) setCategories(res.data.items);
+                });
             }
-        }, 400);
-
-        return () => clearTimeout(delaySearch);
-    }, [activeTab, searchQuery, reviewStatusFilter, dispatch]);
+        } else if (activeTab === 'events') {
+            dispatch(fetchAdminEventsThunk({
+                page: managementPage,
+                size: 10,
+                provinceId: selectedProvinceId || undefined,
+                wardId: selectedWardId || undefined,
+                q: titleQuery || undefined,
+            }));
+            if (categories.length === 0) {
+                CategoryService.getCategories(1, 100).then(res => {
+                    if (res.success) setCategories(res.data.items);
+                });
+            }
+        } else if (activeTab === 'moderation') {
+            dispatch(fetchPendingPlacesThunk({ page: 1, size: isSearch ? 1000 : 50 }));
+            dispatch(fetchPendingEventsThunk({ page: 1, size: isSearch ? 1000 : 50 }));
+        } else if (activeTab === 'categories') {
+            dispatch(fetchAdminCategoriesThunk({ page: 1, size: isSearch ? 1000 : 20 }));
+        } else if (activeTab === 'reviews') {
+            dispatch(fetchAdminReviewsThunk({ page: 1, size: isSearch ? 1000 : 10, status: reviewStatusFilter }));
+        }
+    }, [activeTab, categories.length, dispatch, managementPage, reviewStatusFilter, searchQuery, selectedProvinceId, selectedWardId, titleQuery]);
 
 
     // ── User handlers ──
     const handleUserPageChange = (newPage: number) => {
         dispatch(fetchAdminUsersThunk({ page: newPage, size: searchQuery.trim() ? 1000 : 10 }));
+    };
+
+    const handleTabChange = (tab: AdminTab) => {
+        setActiveTab(tab);
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                tab,
+                page: tab === 'places' || tab === 'events' ? prev.page : 1,
+            }),
+            replace: true,
+        });
+    };
+
+    const handleProvinceChange = (provinceId: string) => {
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                provinceId,
+                wardId: '',
+                page: 1,
+            }),
+            replace: true,
+        });
+    };
+
+    const handleWardChange = (wardId: string) => {
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                wardId,
+                page: 1,
+            }),
+            replace: true,
+        });
+    };
+
+    const handleApplyManagementSearch = () => {
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                q: titleQueryInput,
+                page: 1,
+            }),
+            replace: true,
+        });
+    };
+
+    const handleClearManagementFilters = () => {
+        setTitleQueryInput('');
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                provinceId: '',
+                wardId: '',
+                q: '',
+                page: 1,
+            }),
+            replace: true,
+        });
     };
 
     const handleLock = async (id: string, currentStatus: number) => {
@@ -174,7 +305,10 @@ export function AdminPage() {
 
     // ── Place handlers ──
     const handlePlacePageChange = (newPage: number) => {
-        dispatch(fetchAdminPlacesThunk({ page: newPage, size: searchQuery.trim() ? 1000 : 10 }));
+        navigate({
+            search: (prev) => ({ ...prev, page: newPage }),
+            replace: true,
+        });
     };
 
     const handleOpenCreatePlace = () => {
@@ -193,7 +327,13 @@ export function AdminPage() {
             if (updatePlaceThunk.fulfilled.match(res)) {
                 Swal.fire('Thành công', 'Đã cập nhật địa điểm', 'success');
                 setShowPlaceForm(false);
-                dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 }));
+                dispatch(fetchAdminPlacesThunk({
+                    page: managementPage,
+                    size: 10,
+                    provinceId: selectedProvinceId || undefined,
+                    wardId: selectedWardId || undefined,
+                    q: titleQuery || undefined,
+                }));
                 return selectedPlace.id;
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
@@ -204,7 +344,10 @@ export function AdminPage() {
             if (createPlaceThunk.fulfilled.match(res)) {
                 Swal.fire('Thành công', 'Đã tạo địa điểm mới', 'success');
                 setShowPlaceForm(false);
-                dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 }));
+                navigate({
+                    search: (prev) => ({ ...prev, page: 1 }),
+                    replace: true,
+                });
                 return (res.payload as PlaceItem).id;
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
@@ -219,7 +362,13 @@ export function AdminPage() {
             const res = await dispatch(deletePlaceThunk(id));
             if (deletePlaceThunk.fulfilled.match(res)) {
                 Swal.fire('Thành công', 'Đã xóa địa điểm', 'success');
-                dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 }));
+                dispatch(fetchAdminPlacesThunk({
+                    page: managementPage,
+                    size: 10,
+                    provinceId: selectedProvinceId || undefined,
+                    wardId: selectedWardId || undefined,
+                    q: titleQuery || undefined,
+                }));
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
             }
@@ -228,7 +377,10 @@ export function AdminPage() {
 
     // ── Event handlers ──
     const handleEventPageChange = (newPage: number) => {
-        dispatch(fetchAdminEventsThunk({ page: newPage, size: searchQuery.trim() ? 1000 : 10 }));
+        navigate({
+            search: (prev) => ({ ...prev, page: newPage }),
+            replace: true,
+        });
     };
 
     const handleOpenCreateEvent = () => {
@@ -247,7 +399,13 @@ export function AdminPage() {
             if (updateEventThunk.fulfilled.match(res)) {
                 Swal.fire('Thành công', 'Đã cập nhật sự kiện', 'success');
                 setShowEventForm(false);
-                dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 }));
+                dispatch(fetchAdminEventsThunk({
+                    page: managementPage,
+                    size: 10,
+                    provinceId: selectedProvinceId || undefined,
+                    wardId: selectedWardId || undefined,
+                    q: titleQuery || undefined,
+                }));
                 return selectedEvent.id;
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
@@ -258,7 +416,10 @@ export function AdminPage() {
             if (createEventThunk.fulfilled.match(res)) {
                 Swal.fire('Thành công', 'Đã tạo sự kiện mới', 'success');
                 setShowEventForm(false);
-                dispatch(fetchAdminEventsThunk({ page: 1, size: 10 }));
+                navigate({
+                    search: (prev) => ({ ...prev, page: 1 }),
+                    replace: true,
+                });
                 return (res.payload as EventItem).id;
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
@@ -273,7 +434,13 @@ export function AdminPage() {
             const res = await dispatch(deleteEventThunk(id));
             if (deleteEventThunk.fulfilled.match(res)) {
                 Swal.fire('Thành công', 'Đã xóa sự kiện', 'success');
-                dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 }));
+                dispatch(fetchAdminEventsThunk({
+                    page: managementPage,
+                    size: 10,
+                    provinceId: selectedProvinceId || undefined,
+                    wardId: selectedWardId || undefined,
+                    q: titleQuery || undefined,
+                }));
             } else {
                 Swal.fire('Lỗi', res.payload as string, 'error');
             }
@@ -444,7 +611,7 @@ export function AdminPage() {
                     {sidebarTabs.map(tab => (
                         <button
                             key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
+                            onClick={() => handleTabChange(tab.key)}
                             className={`flex items-center gap-3 rounded-lg p-3 w-full text-left font-medium transition ${activeTab === tab.key ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                         >
                             {tab.label}
@@ -479,9 +646,9 @@ export function AdminPage() {
                                         ].map((card, i) => (
                                             <div key={i} className="rounded-xl border bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition cursor-pointer"
                                                 onClick={() => {
-                                                    if (card.label === 'Người dùng') setActiveTab('users');
-                                                    if (card.label === 'Địa điểm') setActiveTab('places');
-                                                    if (card.label === 'Sự kiện') setActiveTab('events');
+                                                    if (card.label === 'Người dùng') handleTabChange('users');
+                                                    if (card.label === 'Địa điểm') handleTabChange('places');
+                                                    if (card.label === 'Sự kiện') handleTabChange('events');
                                                 }}
                                             >
                                                 <div className="flex justify-between items-start">
@@ -622,16 +789,49 @@ export function AdminPage() {
                     {/* ════════════ PLACES TAB ════════════ */}
                     {activeTab === 'places' && (
                         <div className="flex flex-col h-full">
-                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
-                                <h1 className="text-2xl font-bold text-gray-800">Quản lý Địa điểm</h1>
-                                <div className="flex items-center gap-4">
+                            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800">Quản lý Địa điểm</h1>
+                                    <p className="mt-1 text-sm text-gray-500">Lọc theo tỉnh, xã và tìm nhanh theo tiêu đề.</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <select
+                                        value={selectedProvinceId}
+                                        onChange={(e) => handleProvinceChange(e.target.value)}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[210px]"
+                                    >
+                                        <option value="">Tất cả tỉnh/thành</option>
+                                        {provinces.map((province) => (
+                                            <option key={province.id} value={province.id}>{province.name}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={selectedWardId}
+                                        onChange={(e) => handleWardChange(e.target.value)}
+                                        disabled={!selectedProvinceId}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[210px] disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        <option value="">Tất cả xã/phường</option>
+                                        {wards.map((ward) => (
+                                            <option key={ward.id} value={ward.id}>{ward.name}</option>
+                                        ))}
+                                    </select>
                                     <input
                                         type="text"
                                         placeholder="Tìm kiếm địa điểm..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        value={titleQueryInput}
+                                        onChange={(e) => setTitleQueryInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleApplyManagementSearch();
+                                        }}
                                         className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
                                     />
+                                    <button onClick={handleApplyManagementSearch} className="rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 transition">
+                                        Tìm kiếm
+                                    </button>
+                                    <button onClick={handleClearManagementFilters} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                        Clear all
+                                    </button>
                                     <button onClick={handleOpenCreatePlace} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
                                         <Plus size={16} /> Thêm địa điểm
                                     </button>
@@ -656,7 +856,7 @@ export function AdminPage() {
                                             {placesLoading && (
                                                 <tr><td colSpan={7} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
-                                            {!placesLoading && places.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()))).map((p) => (
+                                            {!placesLoading && places.map((p) => (
                                                 <tr key={p.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3">
                                                         <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
@@ -691,13 +891,13 @@ export function AdminPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!placesLoading && places.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
+                                            {!placesLoading && places.length === 0 && (
                                                 <tr><td colSpan={7} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!placesLoading && searchQuery.trim() === '' && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
+                                {!placesLoading && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
                             </div>
                         </div>
                     )}
@@ -705,16 +905,49 @@ export function AdminPage() {
                     {/* ════════════ EVENTS TAB ════════════ */}
                     {activeTab === 'events' && (
                         <div className="flex flex-col h-full">
-                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
-                                <h1 className="text-2xl font-bold text-gray-800">Quản lý Sự kiện</h1>
-                                <div className="flex items-center gap-4">
+                            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800">Quản lý Sự kiện</h1>
+                                    <p className="mt-1 text-sm text-gray-500">Lọc theo tỉnh, xã và tìm nhanh theo tiêu đề.</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <select
+                                        value={selectedProvinceId}
+                                        onChange={(e) => handleProvinceChange(e.target.value)}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[210px]"
+                                    >
+                                        <option value="">Tất cả tỉnh/thành</option>
+                                        {provinces.map((province) => (
+                                            <option key={province.id} value={province.id}>{province.name}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={selectedWardId}
+                                        onChange={(e) => handleWardChange(e.target.value)}
+                                        disabled={!selectedProvinceId}
+                                        className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[210px] disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        <option value="">Tất cả xã/phường</option>
+                                        {wards.map((ward) => (
+                                            <option key={ward.id} value={ward.id}>{ward.name}</option>
+                                        ))}
+                                    </select>
                                     <input
                                         type="text"
                                         placeholder="Tìm kiếm sự kiện..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        value={titleQueryInput}
+                                        onChange={(e) => setTitleQueryInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleApplyManagementSearch();
+                                        }}
                                         className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
                                     />
+                                    <button onClick={handleApplyManagementSearch} className="rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 transition">
+                                        Tìm kiếm
+                                    </button>
+                                    <button onClick={handleClearManagementFilters} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                        Clear all
+                                    </button>
                                     <button onClick={handleOpenCreateEvent} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
                                         <Plus size={16} /> Thêm sự kiện
                                     </button>
@@ -740,7 +973,7 @@ export function AdminPage() {
                                             {eventsLoading && (
                                                 <tr><td colSpan={8} className="py-10 text-center text-gray-500">Loading...</td></tr>
                                             )}
-                                            {!eventsLoading && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.address && e.address.toLowerCase().includes(searchQuery.toLowerCase()))).map((ev) => (
+                                            {!eventsLoading && events.map((ev) => (
                                                 <tr key={ev.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3">
                                                         <div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
@@ -776,13 +1009,13 @@ export function AdminPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!eventsLoading && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.address && e.address.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && (
+                                            {!eventsLoading && events.length === 0 && (
                                                 <tr><td colSpan={8} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!eventsLoading && searchQuery.trim() === '' && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
+                                {!eventsLoading && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
                             </div>
                         </div>
                     )}

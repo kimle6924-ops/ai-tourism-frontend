@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import ProfileDropdown from '../components/ProfileDropdown';
 import type { AppDispatch, RootState } from '../store';
 import { fetchAdminPlacesThunk, createPlaceThunk, updatePlaceThunk, deletePlaceThunk, setSelectedPlace } from '../store/slice/AdminPlaceSlice';
@@ -20,6 +21,7 @@ import Pagination from '../components/shared/Pagination';
 import { formatDateTime } from '../components/shared/utils';
 
 type ContributorTab = 'overview' | 'places' | 'events' | 'moderation';
+const contributorRouteApi = getRouteApi('/contributor');
 
 // ContributorType: 0=Central, 1=Province, 2=Ward, 3=Collaborator
 const CONTRIBUTOR_TYPE_LABELS: Record<number, string> = {
@@ -32,7 +34,9 @@ const CONTRIBUTOR_TYPE_LABELS: Record<number, string> = {
 // ─── Main Contributor Page ───────────────────────────
 export function ContributorPage() {
     const dispatch = useDispatch<AppDispatch>();
-    const [activeTab, setActiveTab] = useState<ContributorTab>('overview');
+    const navigate = useNavigate({ from: '/contributor' });
+    const routeSearch = contributorRouteApi.useSearch();
+    const [activeTab, setActiveTab] = useState<ContributorTab>(routeSearch.tab as ContributorTab);
     const user = useSelector((state: RootState) => state.login.user);
 
     const contributorType = user?.contributorType ?? null;
@@ -70,7 +74,19 @@ export function ContributorPage() {
     const [moderationSubTab, setModerationSubTab] = useState<'places' | 'events'>('places');
     const [showLogsModal, setShowLogsModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [provinces, setProvinces] = useState<AdministrativeUnit[]>([]);
+    const [wards, setWards] = useState<AdministrativeUnit[]>([]);
+    const [titleQueryInput, setTitleQueryInput] = useState(routeSearch.q);
     const isActionLoading = placeActionLoading || eventActionLoading || moderationActionLoading;
+    const managedProvinceId = managedArea?.level === 0 ? managedArea.id : managedParent?.id;
+    const managedWardId = managedArea?.level === 1 ? managedArea.id : undefined;
+    const isProvince = contributorType === 1;
+    const isWard = contributorType === 2;
+    const isManagementTab = activeTab === 'places' || activeTab === 'events';
+    const selectedProvinceId = isCentral ? routeSearch.provinceId : (isProvince ? (managedProvinceId ?? '') : '');
+    const selectedWardId = isCentral || isProvince ? routeSearch.wardId : '';
+    const titleQuery = routeSearch.q.trim();
+    const managementPage = routeSearch.page;
 
     const renderEventTime = (ev: any) => {
         if (ev.scheduleType === 1) {
@@ -107,79 +123,182 @@ export function ContributorPage() {
         ...(!isCTV ? [{ key: 'moderation' as ContributorTab, label: 'Kiểm duyệt' }] : []),
     ];
 
-    // Reset search query on tab change
     useEffect(() => {
-        setSearchQuery('');
-    }, [activeTab]);
+        const nextTab = routeSearch.tab === 'places'
+            || routeSearch.tab === 'events'
+            || routeSearch.tab === 'overview'
+            || routeSearch.tab === 'moderation'
+            ? routeSearch.tab
+            : 'overview';
+        setActiveTab(isCTV && nextTab === 'moderation' ? 'overview' : nextTab);
+    }, [isCTV, routeSearch.tab]);
+
+    useEffect(() => {
+        setTitleQueryInput(routeSearch.q);
+    }, [routeSearch.q]);
+
+    useEffect(() => {
+        if (!isManagementTab) setSearchQuery('');
+    }, [isManagementTab]);
+
+    useEffect(() => {
+        if (!isCentral) return;
+        AdministrativeUnitService.getByLevel(0).then((res) => {
+            if (res.success) setProvinces(res.data);
+        });
+    }, [isCentral]);
+
+    useEffect(() => {
+        const provinceIdForWards = isCentral ? selectedProvinceId : managedProvinceId;
+        if (!provinceIdForWards) {
+            setWards([]);
+            return;
+        }
+
+        AdministrativeUnitService.getChildren(provinceIdForWards).then((res) => {
+            if (!res.success) {
+                setWards([]);
+                return;
+            }
+
+            const nextWards = res.data.filter((unit) => unit.level === 1);
+            setWards(nextWards);
+
+            if ((isCentral || isProvince) && selectedWardId && !nextWards.some((unit) => unit.id === selectedWardId)) {
+                navigate({
+                    search: (prev) => ({ ...prev, wardId: '', page: 1 }),
+                    replace: true,
+                });
+            }
+        });
+    }, [isCentral, isProvince, managedProvinceId, navigate, selectedProvinceId, selectedWardId]);
+
+    useEffect(() => {
+        if (!isManagementTab || titleQueryInput === routeSearch.q) return;
+
+        const timeout = window.setTimeout(() => {
+            navigate({
+                search: (prev) => ({ ...prev, q: titleQueryInput, page: 1 }),
+                replace: true,
+            });
+        }, 400);
+
+        return () => window.clearTimeout(timeout);
+    }, [activeTab, isManagementTab, navigate, routeSearch.q, titleQueryInput]);
 
     // Load data on tab change or search
     useEffect(() => {
-        const delaySearch = setTimeout(() => {
-            const isSearch = searchQuery.trim() !== '';
+        const isSearch = searchQuery.trim() !== '';
+        const contributorListParams = {
+            page: managementPage,
+            size: 10,
+            provinceId: isCentral || isProvince ? (selectedProvinceId || undefined) : undefined,
+            wardId: isCentral || isProvince ? (selectedWardId || undefined) : (isWard ? managedWardId : undefined),
+            q: titleQuery || undefined,
+        };
 
-            if (activeTab === 'overview') {
-                if (!isSearch) {
-                    dispatch(fetchAdminPlacesThunk({ page: 1, size: 50 }));
-                    dispatch(fetchAdminEventsThunk({ page: 1, size: 50 }));
-                    if (!isCTV) {
-                        dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
-                        dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
-                    }
+        if (activeTab === 'overview') {
+            if (!isSearch) {
+                dispatch(fetchAdminPlacesThunk({ ...contributorListParams, page: 1, size: 50 }));
+                dispatch(fetchAdminEventsThunk({ ...contributorListParams, page: 1, size: 50 }));
+                if (!isCTV) {
+                    dispatch(fetchPendingPlacesThunk({ page: 1, size: 50 }));
+                    dispatch(fetchPendingEventsThunk({ page: 1, size: 50 }));
                 }
-            } else if (activeTab === 'places') {
-                dispatch(fetchAdminPlacesThunk({ page: 1, size: isSearch ? 1000 : 10 }));
-                if (!isSearch) CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
-            } else if (activeTab === 'events') {
-                dispatch(fetchAdminEventsThunk({ page: 1, size: isSearch ? 1000 : 10 }));
-                if (!isSearch && categories.length === 0) CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
-            } else if (activeTab === 'moderation') {
-                dispatch(fetchPendingPlacesThunk({ page: 1, size: isSearch ? 1000 : 50 }));
-                dispatch(fetchPendingEventsThunk({ page: 1, size: isSearch ? 1000 : 50 }));
             }
-        }, 400);
-
-        return () => clearTimeout(delaySearch);
-    }, [activeTab, searchQuery, isCTV, dispatch]);
+        } else if (activeTab === 'places') {
+            dispatch(fetchAdminPlacesThunk(contributorListParams));
+            if (categories.length === 0) CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
+        } else if (activeTab === 'events') {
+            dispatch(fetchAdminEventsThunk(contributorListParams));
+            if (categories.length === 0) CategoryService.getCategories(1, 100).then(res => { if (res.success) setCategories(res.data.items); });
+        } else if (activeTab === 'moderation') {
+            dispatch(fetchPendingPlacesThunk({ page: 1, size: isSearch ? 1000 : 50 }));
+            dispatch(fetchPendingEventsThunk({ page: 1, size: isSearch ? 1000 : 50 }));
+        }
+    }, [activeTab, categories.length, dispatch, isCTV, isCentral, isProvince, isWard, managedProvinceId, managedWardId, managementPage, searchQuery, selectedProvinceId, selectedWardId, titleQuery]);
 
 
     // ── Place handlers ──
-    const handlePlacePageChange = (p: number) => dispatch(fetchAdminPlacesThunk({ page: p, size: searchQuery.trim() ? 1000 : 10 }));
+    const handleTabChange = (tab: ContributorTab) => {
+        setActiveTab(tab);
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                tab,
+                page: tab === 'places' || tab === 'events' ? prev.page : 1,
+            }),
+            replace: true,
+        });
+    };
+    const handleProvinceChange = (provinceId: string) => {
+        navigate({
+            search: (prev) => ({ ...prev, provinceId, wardId: '', page: 1 }),
+            replace: true,
+        });
+    };
+    const handleWardChange = (wardId: string) => {
+        navigate({
+            search: (prev) => ({ ...prev, wardId, page: 1 }),
+            replace: true,
+        });
+    };
+    const handleApplyManagementSearch = () => {
+        navigate({
+            search: (prev) => ({ ...prev, q: titleQueryInput, page: 1 }),
+            replace: true,
+        });
+    };
+    const handleClearManagementFilters = () => {
+        setTitleQueryInput('');
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                provinceId: isCentral ? '' : prev.provinceId,
+                wardId: '',
+                q: '',
+                page: 1,
+            }),
+            replace: true,
+        });
+    };
+    const handlePlacePageChange = (p: number) => navigate({ search: (prev) => ({ ...prev, page: p }), replace: true });
     const handleOpenCreatePlace = () => { dispatch(setSelectedPlace(null)); setShowPlaceForm(true); };
     const handleOpenEditPlace = (place: PlaceItem) => { dispatch(setSelectedPlace(place)); setShowPlaceForm(true); };
     const handlePlaceFormSubmit = async (data: CreatePlacePayload): Promise<string | null> => {
         if (selectedPlace) {
             const res = await dispatch(updatePlaceThunk({ id: selectedPlace.id, payload: data }));
-            if (updatePlaceThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã cập nhật', 'success'); setShowPlaceForm(false); dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 })); return selectedPlace.id; }
+            if (updatePlaceThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã cập nhật', 'success'); setShowPlaceForm(false); dispatch(fetchAdminPlacesThunk({ page: managementPage, size: 10, provinceId: isCentral || isProvince ? (selectedProvinceId || undefined) : undefined, wardId: isCentral || isProvince ? (selectedWardId || undefined) : (isWard ? managedWardId : undefined), q: titleQuery || undefined })); return selectedPlace.id; }
             else { Swal.fire('Lỗi', res.payload as string, 'error'); return null; }
         } else {
             const res = await dispatch(createPlaceThunk(data));
-            if (createPlaceThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã tạo địa điểm', 'success'); setShowPlaceForm(false); dispatch(fetchAdminPlacesThunk({ page: 1, size: 10 })); return (res.payload as PlaceItem).id; }
+            if (createPlaceThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã tạo địa điểm', 'success'); setShowPlaceForm(false); navigate({ search: (prev) => ({ ...prev, page: 1 }), replace: true }); return (res.payload as PlaceItem).id; }
             else { Swal.fire('Lỗi', res.payload as string, 'error'); return null; }
         }
     };
     const handleDeletePlace = async (id: string, title: string) => {
         const c = await Swal.fire({ title: 'Xóa?', text: `Xóa "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa', cancelButtonText: 'Hủy' });
-        if (c.isConfirmed) { const res = await dispatch(deletePlaceThunk(id)); if (deletePlaceThunk.fulfilled.match(res)) { Swal.fire('Đã xóa', '', 'success'); dispatch(fetchAdminPlacesThunk({ page: placesPageNumber, size: 10 })); } else Swal.fire('Lỗi', res.payload as string, 'error'); }
+        if (c.isConfirmed) { const res = await dispatch(deletePlaceThunk(id)); if (deletePlaceThunk.fulfilled.match(res)) { Swal.fire('Đã xóa', '', 'success'); dispatch(fetchAdminPlacesThunk({ page: managementPage, size: 10, provinceId: isCentral || isProvince ? (selectedProvinceId || undefined) : undefined, wardId: isCentral || isProvince ? (selectedWardId || undefined) : (isWard ? managedWardId : undefined), q: titleQuery || undefined })); } else Swal.fire('Lỗi', res.payload as string, 'error'); }
     };
 
     // ── Event handlers ──
-    const handleEventPageChange = (p: number) => dispatch(fetchAdminEventsThunk({ page: p, size: searchQuery.trim() ? 1000 : 10 }));
+    const handleEventPageChange = (p: number) => navigate({ search: (prev) => ({ ...prev, page: p }), replace: true });
     const handleOpenCreateEvent = () => { dispatch(setSelectedEvent(null)); setShowEventForm(true); };
     const handleOpenEditEvent = (ev: EventItem) => { dispatch(setSelectedEvent(ev)); setShowEventForm(true); };
     const handleEventFormSubmit = async (data: CreateEventPayload | UpdateEventPayload): Promise<string | null> => {
         if (selectedEvent) {
             const res = await dispatch(updateEventThunk({ id: selectedEvent.id, payload: data as UpdateEventPayload }));
-            if (updateEventThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã cập nhật', 'success'); setShowEventForm(false); dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 })); return selectedEvent.id; }
+            if (updateEventThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã cập nhật', 'success'); setShowEventForm(false); dispatch(fetchAdminEventsThunk({ page: managementPage, size: 10, provinceId: isCentral || isProvince ? (selectedProvinceId || undefined) : undefined, wardId: isCentral || isProvince ? (selectedWardId || undefined) : (isWard ? managedWardId : undefined), q: titleQuery || undefined })); return selectedEvent.id; }
             else { Swal.fire('Lỗi', res.payload as string, 'error'); return null; }
         } else {
             const res = await dispatch(createEventThunk(data as CreateEventPayload));
-            if (createEventThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã tạo sự kiện', 'success'); setShowEventForm(false); dispatch(fetchAdminEventsThunk({ page: 1, size: 10 })); return (res.payload as EventItem).id; }
+            if (createEventThunk.fulfilled.match(res)) { Swal.fire('Thành công', 'Đã tạo sự kiện', 'success'); setShowEventForm(false); navigate({ search: (prev) => ({ ...prev, page: 1 }), replace: true }); return (res.payload as EventItem).id; }
             else { Swal.fire('Lỗi', res.payload as string, 'error'); return null; }
         }
     };
     const handleDeleteEvent = async (id: string, title: string) => {
         const c = await Swal.fire({ title: 'Xóa?', text: `Xóa "${title}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa', cancelButtonText: 'Hủy' });
-        if (c.isConfirmed) { const res = await dispatch(deleteEventThunk(id)); if (deleteEventThunk.fulfilled.match(res)) { Swal.fire('Đã xóa', '', 'success'); dispatch(fetchAdminEventsThunk({ page: eventsPageNumber, size: 10 })); } else Swal.fire('Lỗi', res.payload as string, 'error'); }
+        if (c.isConfirmed) { const res = await dispatch(deleteEventThunk(id)); if (deleteEventThunk.fulfilled.match(res)) { Swal.fire('Đã xóa', '', 'success'); dispatch(fetchAdminEventsThunk({ page: managementPage, size: 10, provinceId: isCentral || isProvince ? (selectedProvinceId || undefined) : undefined, wardId: isCentral || isProvince ? (selectedWardId || undefined) : (isWard ? managedWardId : undefined), q: titleQuery || undefined })); } else Swal.fire('Lỗi', res.payload as string, 'error'); }
     };
 
     // ── Moderation handlers ──
@@ -238,7 +357,7 @@ export function ContributorPage() {
                 {/* Sidebar */}
                 <aside className="w-64 border-r bg-white p-4 shadow-sm h-full flex flex-col gap-2">
                     {sidebarTabs.map(tab => (
-                        <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                        <button key={tab.key} onClick={() => handleTabChange(tab.key)}
                             className={`flex items-center gap-3 rounded-lg p-3 w-full text-left font-medium transition ${activeTab === tab.key ? 'bg-emerald-50 text-emerald-700' : 'text-gray-600 hover:bg-gray-100'}`}>
                             {tab.label}
                         </button>
@@ -273,23 +392,23 @@ export function ContributorPage() {
                                 </div>
                             )}
                             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                                <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => setActiveTab('places')}>
+                                <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => handleTabChange('places')}>
                                     <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Địa điểm</div><div className="p-2 bg-green-50 rounded-lg text-green-600"><MapPin size={20} /></div></div>
                                     <div className="mt-2 text-3xl font-bold text-gray-800">{places.length}</div>
                                     <div className="text-xs text-gray-500 mt-1">Trong phạm vi quản lý</div>
                                 </div>
-                                <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => setActiveTab('events')}>
+                                <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => handleTabChange('events')}>
                                     <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Sự kiện</div><div className="p-2 bg-purple-50 rounded-lg text-purple-600"><Calendar size={20} /></div></div>
                                     <div className="mt-2 text-3xl font-bold text-gray-800">{events.length}</div>
                                     <div className="text-xs text-gray-500 mt-1">Trong phạm vi quản lý</div>
                                 </div>
                                 {!isCTV && (
                                     <>
-                                        <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => { setActiveTab('moderation'); setModerationSubTab('places'); }}>
+                                        <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => { handleTabChange('moderation'); setModerationSubTab('places'); }}>
                                             <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Địa điểm chờ duyệt</div><div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><CheckCircle size={20} /></div></div>
                                             <div className="mt-2 text-3xl font-bold text-gray-800">{placesTotalCount}</div>
                                         </div>
-                                        <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => { setActiveTab('moderation'); setModerationSubTab('events'); }}>
+                                        <div className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => { handleTabChange('moderation'); setModerationSubTab('events'); }}>
                                             <div className="flex justify-between items-start"><div className="text-sm font-medium text-gray-500">Sự kiện chờ duyệt</div><div className="p-2 bg-orange-50 rounded-lg text-orange-600"><CheckCircle size={20} /></div></div>
                                             <div className="mt-2 text-3xl font-bold text-gray-800">{eventsTotalCount}</div>
                                         </div>
@@ -302,16 +421,63 @@ export function ContributorPage() {
                     {/* ════════════ PLACES ════════════ */}
                     {activeTab === 'places' && (
                         <div className="flex flex-col h-full">
-                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
-                                <h1 className="text-2xl font-bold text-gray-800">Quản lý Địa điểm</h1>
-                                <div className="flex items-center gap-4">
+                            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800">Quản lý Địa điểm</h1>
+                                    <p className="mt-1 text-sm text-gray-500">Lọc theo phạm vi quản lý và tìm nhanh theo tiêu đề.</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {isCentral && (
+                                        <select
+                                            value={selectedProvinceId}
+                                            onChange={(e) => handleProvinceChange(e.target.value)}
+                                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[210px]"
+                                        >
+                                            <option value="">Tất cả tỉnh/thành</option>
+                                            {provinces.map((province) => (
+                                                <option key={province.id} value={province.id}>{province.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    {(isCentral || isProvince) && (
+                                        <select
+                                            value={selectedWardId}
+                                            onChange={(e) => handleWardChange(e.target.value)}
+                                            disabled={isCentral ? !selectedProvinceId : !managedProvinceId}
+                                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[210px] disabled:bg-gray-100 disabled:text-gray-400"
+                                        >
+                                            <option value="">Tất cả xã/phường</option>
+                                            {wards.map((ward) => (
+                                                <option key={ward.id} value={ward.id}>{ward.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    {isProvince && managedArea && (
+                                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+                                            Tỉnh quản lý: {managedArea.name}
+                                        </div>
+                                    )}
+                                    {(isWard || isCTV) && forcedAreaLabel && (
+                                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+                                            Phạm vi: {forcedAreaLabel}
+                                        </div>
+                                    )}
                                     <input
                                         type="text"
                                         placeholder="Tìm kiếm địa điểm..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        value={titleQueryInput}
+                                        onChange={(e) => setTitleQueryInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleApplyManagementSearch();
+                                        }}
                                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[250px]"
                                     />
+                                    <button onClick={handleApplyManagementSearch} className="rounded-lg border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition">
+                                        Tìm kiếm
+                                    </button>
+                                    <button onClick={handleClearManagementFilters} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                        Clear all
+                                    </button>
                                     <button onClick={handleOpenCreatePlace} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition"><Plus size={16} /> Thêm địa điểm</button>
                                 </div>
                             </div>
@@ -323,7 +489,7 @@ export function ContributorPage() {
                                         </thead>
                                         <tbody className="divide-y text-gray-800">
                                             {placesLoading && <tr><td colSpan={7} className="py-10 text-center text-gray-500">Loading...</td></tr>}
-                                            {!placesLoading && places.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()))).map(p => (
+                                            {!placesLoading && places.map(p => (
                                                 <tr key={p.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3"><div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">{p.images?.find(i => i.isPrimary)?.url || p.images?.[0]?.url ? <img src={p.images.find(i => i.isPrimary)?.url || p.images[0]?.url} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-gray-400"><MapPin size={16} /></div>}</div></td>
                                                     <td className="px-4 py-3 font-semibold text-gray-900 max-w-[200px] truncate">{p.title}</td>
@@ -339,11 +505,11 @@ export function ContributorPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!placesLoading && places.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || (p.address && p.address.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && <tr><td colSpan={7} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>}
+                                            {!placesLoading && places.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!placesLoading && searchQuery.trim() === '' && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
+                                {!placesLoading && <Pagination currentPage={placesPageNumber} totalPages={placesTotalPages} onPageChange={handlePlacePageChange} />}
                             </div>
                         </div>
                     )}
@@ -351,16 +517,63 @@ export function ContributorPage() {
                     {/* ════════════ EVENTS ════════════ */}
                     {activeTab === 'events' && (
                         <div className="flex flex-col h-full">
-                            <div className="mb-6 flex items-center justify-between flex-shrink-0">
-                                <h1 className="text-2xl font-bold text-gray-800">Quản lý Sự kiện</h1>
-                                <div className="flex items-center gap-4">
+                            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800">Quản lý Sự kiện</h1>
+                                    <p className="mt-1 text-sm text-gray-500">Lọc theo phạm vi quản lý và tìm nhanh theo tiêu đề.</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {isCentral && (
+                                        <select
+                                            value={selectedProvinceId}
+                                            onChange={(e) => handleProvinceChange(e.target.value)}
+                                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[210px]"
+                                        >
+                                            <option value="">Tất cả tỉnh/thành</option>
+                                            {provinces.map((province) => (
+                                                <option key={province.id} value={province.id}>{province.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    {(isCentral || isProvince) && (
+                                        <select
+                                            value={selectedWardId}
+                                            onChange={(e) => handleWardChange(e.target.value)}
+                                            disabled={isCentral ? !selectedProvinceId : !managedProvinceId}
+                                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[210px] disabled:bg-gray-100 disabled:text-gray-400"
+                                        >
+                                            <option value="">Tất cả xã/phường</option>
+                                            {wards.map((ward) => (
+                                                <option key={ward.id} value={ward.id}>{ward.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    {isProvince && managedArea && (
+                                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+                                            Tỉnh quản lý: {managedArea.name}
+                                        </div>
+                                    )}
+                                    {(isWard || isCTV) && forcedAreaLabel && (
+                                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+                                            Phạm vi: {forcedAreaLabel}
+                                        </div>
+                                    )}
                                     <input
                                         type="text"
                                         placeholder="Tìm kiếm sự kiện..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        value={titleQueryInput}
+                                        onChange={(e) => setTitleQueryInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleApplyManagementSearch();
+                                        }}
                                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[250px]"
                                     />
+                                    <button onClick={handleApplyManagementSearch} className="rounded-lg border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition">
+                                        Tìm kiếm
+                                    </button>
+                                    <button onClick={handleClearManagementFilters} className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+                                        Clear all
+                                    </button>
                                     <button onClick={handleOpenCreateEvent} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition"><Plus size={16} /> Thêm sự kiện</button>
                                 </div>
                             </div>
@@ -372,7 +585,7 @@ export function ContributorPage() {
                                         </thead>
                                         <tbody className="divide-y text-gray-800">
                                             {eventsLoading && <tr><td colSpan={8} className="py-10 text-center text-gray-500">Loading...</td></tr>}
-                                            {!eventsLoading && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.address && e.address.toLowerCase().includes(searchQuery.toLowerCase()))).map(ev => (
+                                            {!eventsLoading && events.map(ev => (
                                                 <tr key={ev.id} className="hover:bg-gray-50 transition">
                                                     <td className="px-4 py-3"><div className="h-12 w-16 rounded-lg bg-gray-100 overflow-hidden">{ev.images?.[0]?.url ? <img src={ev.images[0].url} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-gray-400"><Calendar size={16} /></div>}</div></td>
                                                     <td className="px-4 py-3 font-semibold text-gray-900 max-w-[180px] truncate">{ev.title}</td>
@@ -391,11 +604,11 @@ export function ContributorPage() {
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {!eventsLoading && events.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.address && e.address.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 && <tr><td colSpan={8} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>}
+                                            {!eventsLoading && events.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-gray-500">Không có dữ liệu.</td></tr>}
                                         </tbody>
                                     </table>
                                 </div>
-                                {!eventsLoading && searchQuery.trim() === '' && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
+                                {!eventsLoading && <Pagination currentPage={eventsPageNumber} totalPages={eventsTotalPages} onPageChange={handleEventPageChange} />}
                             </div>
                         </div>
                     )}
