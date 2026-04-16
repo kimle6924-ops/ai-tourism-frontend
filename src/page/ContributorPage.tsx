@@ -17,6 +17,7 @@ import { ModerationBadge, EventStatusBadge, ContributorTypeBadge } from '../comp
 import PlaceFormModal from '../components/shared/PlaceFormModal';
 import EventFormModal from '../components/shared/EventFormModal';
 import LogsModal from '../components/shared/LogsModal';
+import LocationAutocomplete from '../components/shared/LocationAutocomplete';
 import Pagination from '../components/shared/Pagination';
 import { formatDateTime } from '../components/shared/utils';
 
@@ -428,29 +429,23 @@ export function ContributorPage() {
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3">
                                     {isCentral && (
-                                        <select
+                                        <LocationAutocomplete
+                                            items={provinces}
                                             value={selectedProvinceId}
-                                            onChange={(e) => handleProvinceChange(e.target.value)}
+                                            onChange={handleProvinceChange}
+                                            placeholder="Tất cả tỉnh/thành"
                                             className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[210px]"
-                                        >
-                                            <option value="">Tất cả tỉnh/thành</option>
-                                            {provinces.map((province) => (
-                                                <option key={province.id} value={province.id}>{province.name}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     )}
                                     {(isCentral || isProvince) && (
-                                        <select
+                                        <LocationAutocomplete
+                                            items={wards}
                                             value={selectedWardId}
-                                            onChange={(e) => handleWardChange(e.target.value)}
+                                            onChange={handleWardChange}
+                                            placeholder="Tất cả xã/phường"
                                             disabled={isCentral ? !selectedProvinceId : !managedProvinceId}
                                             className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[210px] disabled:bg-gray-100 disabled:text-gray-400"
-                                        >
-                                            <option value="">Tất cả xã/phường</option>
-                                            {wards.map((ward) => (
-                                                <option key={ward.id} value={ward.id}>{ward.name}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     )}
                                     {isProvince && managedArea && (
                                         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
@@ -524,29 +519,23 @@ export function ContributorPage() {
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3">
                                     {isCentral && (
-                                        <select
+                                        <LocationAutocomplete
+                                            items={provinces}
                                             value={selectedProvinceId}
-                                            onChange={(e) => handleProvinceChange(e.target.value)}
+                                            onChange={handleProvinceChange}
+                                            placeholder="Tất cả tỉnh/thành"
                                             className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[210px]"
-                                        >
-                                            <option value="">Tất cả tỉnh/thành</option>
-                                            {provinces.map((province) => (
-                                                <option key={province.id} value={province.id}>{province.name}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     )}
                                     {(isCentral || isProvince) && (
-                                        <select
+                                        <LocationAutocomplete
+                                            items={wards}
                                             value={selectedWardId}
-                                            onChange={(e) => handleWardChange(e.target.value)}
+                                            onChange={handleWardChange}
+                                            placeholder="Tất cả xã/phường"
                                             disabled={isCentral ? !selectedProvinceId : !managedProvinceId}
                                             className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 bg-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-w-[210px] disabled:bg-gray-100 disabled:text-gray-400"
-                                        >
-                                            <option value="">Tất cả xã/phường</option>
-                                            {wards.map((ward) => (
-                                                <option key={ward.id} value={ward.id}>{ward.name}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     )}
                                     {isProvince && managedArea && (
                                         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">

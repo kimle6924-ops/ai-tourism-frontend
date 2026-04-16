@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 import { Users, MapPin, Calendar, Star, MessageSquare, Plus, Pencil, Trash2, X, Clock, CheckCircle, XCircle, FileText, Tag, Eye, EyeOff } from 'lucide-react';
 import { RoleBadge, UserStatusBadge, ModerationBadge, EventStatusBadge, ContributorTypeBadge, ReviewStatusBadge } from '../components/shared/StatusBadges';
+import LocationAutocomplete from '../components/shared/LocationAutocomplete';
 import PlaceFormModal from '../components/shared/PlaceFormModal';
 import EventFormModal from '../components/shared/EventFormModal';
 import LogsModal from '../components/shared/LogsModal';
@@ -795,27 +796,21 @@ export function AdminPage() {
                                     <p className="mt-1 text-sm text-gray-500">Lọc theo tỉnh, xã và tìm nhanh theo tiêu đề.</p>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <select
+                                    <LocationAutocomplete
+                                        items={provinces}
                                         value={selectedProvinceId}
-                                        onChange={(e) => handleProvinceChange(e.target.value)}
+                                        onChange={handleProvinceChange}
+                                        placeholder="Tất cả tỉnh/thành"
                                         className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[210px]"
-                                    >
-                                        <option value="">Tất cả tỉnh/thành</option>
-                                        {provinces.map((province) => (
-                                            <option key={province.id} value={province.id}>{province.name}</option>
-                                        ))}
-                                    </select>
-                                    <select
+                                    />
+                                    <LocationAutocomplete
+                                        items={wards}
                                         value={selectedWardId}
-                                        onChange={(e) => handleWardChange(e.target.value)}
+                                        onChange={handleWardChange}
+                                        placeholder="Tất cả xã/phường"
                                         disabled={!selectedProvinceId}
                                         className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[210px] disabled:bg-gray-100 disabled:text-gray-400"
-                                    >
-                                        <option value="">Tất cả xã/phường</option>
-                                        {wards.map((ward) => (
-                                            <option key={ward.id} value={ward.id}>{ward.name}</option>
-                                        ))}
-                                    </select>
+                                    />
                                     <input
                                         type="text"
                                         placeholder="Tìm kiếm địa điểm..."
@@ -911,27 +906,21 @@ export function AdminPage() {
                                     <p className="mt-1 text-sm text-gray-500">Lọc theo tỉnh, xã và tìm nhanh theo tiêu đề.</p>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <select
+                                    <LocationAutocomplete
+                                        items={provinces}
                                         value={selectedProvinceId}
-                                        onChange={(e) => handleProvinceChange(e.target.value)}
+                                        onChange={handleProvinceChange}
+                                        placeholder="Tất cả tỉnh/thành"
                                         className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[210px]"
-                                    >
-                                        <option value="">Tất cả tỉnh/thành</option>
-                                        {provinces.map((province) => (
-                                            <option key={province.id} value={province.id}>{province.name}</option>
-                                        ))}
-                                    </select>
-                                    <select
+                                    />
+                                    <LocationAutocomplete
+                                        items={wards}
                                         value={selectedWardId}
-                                        onChange={(e) => handleWardChange(e.target.value)}
+                                        onChange={handleWardChange}
+                                        placeholder="Tất cả xã/phường"
                                         disabled={!selectedProvinceId}
                                         className="rounded-lg border px-4 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[210px] disabled:bg-gray-100 disabled:text-gray-400"
-                                    >
-                                        <option value="">Tất cả xã/phường</option>
-                                        {wards.map((ward) => (
-                                            <option key={ward.id} value={ward.id}>{ward.name}</option>
-                                        ))}
-                                    </select>
+                                    />
                                     <input
                                         type="text"
                                         placeholder="Tìm kiếm sự kiện..."
