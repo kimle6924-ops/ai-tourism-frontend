@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TourismRouteImport } from './routes/tourism'
 import { Route as RanksRouteImport } from './routes/ranks'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as ContributorRouteImport } from './routes/contributor'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -29,6 +30,11 @@ const TourismRoute = TourismRouteImport.update({
 const RanksRoute = RanksRouteImport.update({
   id: '/ranks',
   path: '/ranks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsRoute = EventsRouteImport.update({
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
   '/events': typeof EventsRouteWithChildren
+  '/profile': typeof ProfileRoute
   '/ranks': typeof RanksRoute
   '/tourism': typeof TourismRoute
   '/events/$id': typeof EventsIdRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
   '/events': typeof EventsRouteWithChildren
+  '/profile': typeof ProfileRoute
   '/ranks': typeof RanksRoute
   '/tourism': typeof TourismRoute
   '/events/$id': typeof EventsIdRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/contributor': typeof ContributorRoute
   '/events': typeof EventsRouteWithChildren
+  '/profile': typeof ProfileRoute
   '/ranks': typeof RanksRoute
   '/tourism': typeof TourismRoute
   '/events/$id': typeof EventsIdRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contributor'
     | '/events'
+    | '/profile'
     | '/ranks'
     | '/tourism'
     | '/events/$id'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contributor'
     | '/events'
+    | '/profile'
     | '/ranks'
     | '/tourism'
     | '/events/$id'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contributor'
     | '/events'
+    | '/profile'
     | '/ranks'
     | '/tourism'
     | '/events/$id'
@@ -167,6 +179,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ContributorRoute: typeof ContributorRoute
   EventsRoute: typeof EventsRouteWithChildren
+  ProfileRoute: typeof ProfileRoute
   RanksRoute: typeof RanksRoute
   TourismRoute: typeof TourismRoute
   PlacesIdRoute: typeof PlacesIdRoute
@@ -186,6 +199,13 @@ declare module '@tanstack/react-router' {
       path: '/ranks'
       fullPath: '/ranks'
       preLoaderRoute: typeof RanksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events': {
@@ -273,6 +293,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ContributorRoute: ContributorRoute,
   EventsRoute: EventsRouteWithChildren,
+  ProfileRoute: ProfileRoute,
   RanksRoute: RanksRoute,
   TourismRoute: TourismRoute,
   PlacesIdRoute: PlacesIdRoute,

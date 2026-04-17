@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 import logoImg from '../assets/images/image_logo_vivu.png';
 import ProfileDropdown from './ProfileDropdown';
 
@@ -7,6 +9,9 @@ interface MainHeaderProps {
 }
 
 export default function MainHeader({ transparent = false }: MainHeaderProps) {
+  const { profile } = useSelector((s: RootState) => s.profile);
+  const user = useSelector((s: RootState) => s.login.user);
+
   return (
     <header className={`flex w-full items-center justify-between px-4 sm:px-12 py-4 ${transparent ? 'absolute top-0 left-0 z-50 bg-transparent' : 'bg-white shadow-sm'}`}>
       {/* Left: Logo */}
@@ -20,7 +25,8 @@ export default function MainHeader({ transparent = false }: MainHeaderProps) {
 
       {/* Right: Menu + User */}
       <div className="flex items-center gap-4 sm:gap-12">
-        <nav className={`hidden md:flex items-center gap-10 text-[16px] ${transparent ? 'font-black drop-shadow-md text-white' : 'font-extrabold !text-[#000054]'}`}>
+        {((profile?.role === 2 || !user)) && (
+          <nav className={`hidden md:flex items-center gap-10 text-[16px] ${transparent ? 'font-black drop-shadow-md text-white' : 'font-extrabold !text-[#000054]'}`}>
           <Link
             to="/"
             activeProps={{
@@ -59,6 +65,7 @@ export default function MainHeader({ transparent = false }: MainHeaderProps) {
             Xếp hạng
           </Link>
         </nav>
+        )}
 
         {/* User Icon */}
         <ProfileDropdown />

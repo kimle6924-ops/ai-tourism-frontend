@@ -19,6 +19,9 @@ function RootComponent() {
       const role = user.role;
       const path = location.pathname;
 
+      // Allow all roles to access /profile
+      if (path.startsWith('/profile')) return;
+
       if (role === 0 && !path.startsWith('/admin')) {
         navigate({ to: '/admin' });
       } else if (role === 1 && !path.startsWith('/contributor')) {
