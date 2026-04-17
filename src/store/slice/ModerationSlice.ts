@@ -41,14 +41,15 @@ export const fetchPendingPlacesThunk = createAsyncThunk(
     'moderation/fetchPendingPlaces',
     async ({ page, size }: { page: number; size: number }, { rejectWithValue }) => {
         try {
-            const res = await AdminPlaceService.getAll(page, size);
+            const res = await AdminPlaceService.getAll({ page, size });
             if (!res.success) return rejectWithValue(res.error || 'Lỗi');
             // Filter pending (moderationStatus === 0) client-side
+            const filteredItems = res.data.items.filter(p => p.moderationStatus === 0);
             const filtered = {
                 ...res.data,
-                items: res.data.items.filter(p => p.moderationStatus === 0),
+                items: filteredItems,
             };
-            return { data: filtered, totalPending: res.data.items.filter(p => p.moderationStatus === 0).length };
+            return { data: filtered, totalPending: filteredItems.length };
         } catch (err: any) {
             return rejectWithValue(err?.response?.data?.error || 'Lỗi server');
         }
@@ -59,13 +60,14 @@ export const fetchPendingEventsThunk = createAsyncThunk(
     'moderation/fetchPendingEvents',
     async ({ page, size }: { page: number; size: number }, { rejectWithValue }) => {
         try {
-            const res = await AdminEventService.getAll(page, size);
+            const res = await AdminEventService.getAll({ page, size });
             if (!res.success) return rejectWithValue(res.error || 'Lỗi');
+            const filteredItems = res.data.items.filter(e => e.moderationStatus === 0);
             const filtered = {
                 ...res.data,
-                items: res.data.items.filter(e => e.moderationStatus === 0),
+                items: filteredItems,
             };
-            return { data: filtered, totalPending: res.data.items.filter(e => e.moderationStatus === 0).length };
+            return { data: filtered, totalPending: filteredItems.length };
         } catch (err: any) {
             return rejectWithValue(err?.response?.data?.error || 'Lỗi server');
         }

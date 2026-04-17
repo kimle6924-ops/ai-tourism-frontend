@@ -201,8 +201,8 @@ export function AdminPage() {
                 });
             }
         } else if (activeTab === 'moderation') {
-            dispatch(fetchPendingPlacesThunk({ page: 1, size: isSearch ? 1000 : 50 }));
-            dispatch(fetchPendingEventsThunk({ page: 1, size: isSearch ? 1000 : 50 }));
+            dispatch(fetchPendingPlacesThunk({ page: 1, size: 999 }));
+            dispatch(fetchPendingEventsThunk({ page: 1, size: 999 }));
         } else if (activeTab === 'categories') {
             dispatch(fetchAdminCategoriesThunk({ page: 1, size: isSearch ? 1000 : 20 }));
         } else if (activeTab === 'reviews') {
